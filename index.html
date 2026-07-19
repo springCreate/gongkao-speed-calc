@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>公考资料分析速算训练</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+::-webkit-scrollbar { width: 0; height: 0; }
+.tab-content { display: none; animation: fadeIn 0.3s ease; }
+.tab-content.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes flipIn { 0% { transform: rotateY(0); } 100% { transform: rotateY(180deg); } }
+.animate-pulse-once { animation: pulse 0.3s ease; }
+.animate-shake { animation: shake 0.4s ease; }
+.animate-slideUp { animation: slideUp 0.5s ease; }
+.card-shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06); }
+.card-shadow-lg { box-shadow: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06); }
+.btn-press:active { transform: scale(0.96); transition: transform 0.1s; }
+.flashcard { perspective: 1000px; }
+.flashcard-inner { transition: transform 0.6s; transform-style: preserve-3d; }
+.flashcard-inner.flipped { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flashcard-back { transform: rotateY(180deg); }
+.option-btn { transition: all 0.2s; }
+.option-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.option-btn:active { transform: scale(0.98); }
+.option-btn.correct { background: #10b981 !important; color: white !important; border-color: #10b981 !important; }
+.option-btn.wrong { background: #ef4444 !important; color: white !important; border-color: #ef4444 !important; }
+.progress-ring { transition: stroke-dashoffset 0.5s ease; }
+::-webkit-input-placeholder { color: #94a3b8; }
+textarea:focus, input:focus, select:focus { outline: none; border-color: #1e3a5f; box-shadow: 0 0 0 2px rgba(30,58,95,0.15); }
+.modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+.sub-tab { padding: 6px 16px; border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.sub-tab.active { background: #1e3a5f; color: white; }
+.sub-tab:not(.active) { background: #e2e8f0; color: #475569; }
+.level-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 8px 12px; text-align: center; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+th { background: #1e3a5f; color: white; font-weight: 600; position: sticky; top: 0; }
+tr:nth-child(even) { background: #f8fafc; }
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; padding: 10px 24px; border-radius: 8px; color: white; font-size: 14px; font-weight: 500; animation: slideDown 0.3s ease; pointer-events: none; }
+@keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen pb-20">
+<div id="app" class="max-w-lg mx-auto">
+<!-- Header -->
+<header class="bg-gradient-to-r from-[#1e3a5f] to-[#2d5a8e] text-white px-4 py-3 flex items-center justify-between sticky top-0 z-40">
+<div class="flex items-center gap-2">
+<span class="text-lg font-bold">公考速算训练</span>
+</div>
+<button onclick="showShareModal()" class="btn-press bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1.5 text-sm flex items-center gap-1">
+<span>分享</span>
+</button>
+</header>
+
+<!-- Tab 1: Home/Dashboard -->
+<div id="tab-home" class="tab-content active px-4 py-4">
+<div id="dashboard-content"></div>
+</div>
+
+<!-- Tab 2: Feature Numbers -->
+<div id="tab-feature" class="tab-content px-4 py-4">
+<div class="flex gap-2 mb-4 overflow-x-auto pb-1">
+<div class="sub-tab active" onclick="switchFeatureMode('browse')">浏览</div>
+<div class="sub-tab" onclick="switchFeatureMode('flashcard')">闪卡</div>
+<div class="sub-tab" onclick="switchFeatureMode('challenge')">限时挑战</div>
+<div class="sub-tab" onclick="switchFeatureMode('progress')">熟练度</div>
+</div>
+<div id="feature-content"></div>
+</div>
+
+<!-- Tab 3: Speed Calc -->
+<div id="tab-calc" class="tab-content px-4 py-4">
+<div id="calc-content"></div>
+</div>
+
+<!-- Tab 4: Question Bank -->
+<div id="tab-bank" class="tab-content px-4 py-4">
+<div id="bank-content"></div>
+</div>
+
+<!-- Bottom Tab Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+<div class="max-w-lg mx-auto flex">
+<button onclick="switchTab('home')" class="flex-1 flex flex-col items-center py-2 text-xs tab-btn active" data-tab="home">
+<span class="text-lg mb-0.5">🏠</span><span>首页</span>
+</button>
+<button onclick="switchTab('feature')" class="flex-1 flex flex-col items-center py-2 text-xs tab-btn" data-tab="feature">
+<span class="text-lg mb-0.5">📊</span><span>敏感数</span>
+</button>
+<button onclick="switchTab('calc')" class="flex-1 flex flex-col items-center py-2 text-xs tab-btn" data-tab="calc">
+<span class="text-lg mb-0.5">⚡</span><span>速算</span>
+</button>
+<button onclick="switchTab('bank')" class="flex-1 flex flex-col items-center py-2 text-xs tab-btn" data-tab="bank">
+<span class="text-lg mb-0.5">📝</span><span>题库</span>
+</button>
+</div>
+</nav>
+</div>
+
+<!-- Modal Container -->
+<div id="modal-overlay" class="modal-overlay fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
+<div id="modal-content" class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto"></div>
+</div>
+
+<!-- Hidden Share Poster -->
+<div id="share-poster" class="absolute -left-[9999px] top-0 w-[360px] bg-gradient-to-br from-[#1e3a5f] to-[#0f2440] rounded-2xl p-6 text-white">
+<div class="text-center mb-4">
+<h2 class="text-xl font-bold mb-1">公考资料分析速算训练</h2>
+<p class="text-gray-300 text-sm">我的训练成绩</p>
+</div>
+<div id="poster-body" class="bg-white/10 rounded-xl p-4 mb-4"></div>
+<div class="flex items-center justify-center gap-2 text-gray-400 text-xs">
+<div class="w-16 h-16 bg-white/20 rounded-lg flex items-center justify-center text-lg">📅</div>
+<span>扫码加入训练</span>
+</div>
+</div>
+
+<script>
+// ==================== DATA STORE ====================
+const STORAGE_KEY = 'gongkao_speed_calc';
+let state = loadState();
+
+function defaultState() {
+  return {
+    featureProficiency: {}, // { "1_3": { correct: 0, wrong: 0 }, ... }
+    calcHistory: [], // [{ type, difficulty, score, total, avgTime, date, details }]
+    customQuestions: [], // [{ material, question, options, answer, explanation }]
+    wrongQuestions: [], // [{ type, source, question, options, answer, userAnswer, explanation, date }]
+    dailyStats: {}, // { "2024-01-15": { count: 3, correct: 25, total: 30, totalTime: 180 } }
+    challengeBest: 0
+  };
+}
+
+function loadState() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) { const d = JSON.parse(s); return { ...defaultState(), ...d }; }
+  } catch(e) {}
+  return defaultState();
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function ensureTodayStats() {
+  const k = todayKey();
+  if (!state.dailyStats[k]) state.dailyStats[k] = { count: 0, correct: 0, total: 0, totalTime: 0 };
+}
+
+// ==================== FEATURE NUMBERS DATABASE ====================
+const FRACTION_DB = [
+  // 1/2 family
+  { num: 1, den: 2, pct: 50 },
+  // 1/3 family
+  { num: 1, den: 3, pct: 33.3 },
+  { num: 2, den: 3, pct: 66.7 },
+  // 1/4 family
+  { num: 1, den: 4, pct: 25 },
+  { num: 2, den: 4, pct: 50 },
+  { num: 3, den: 4, pct: 75 },
+  // 1/5 family
+  { num: 1, den: 5, pct: 20 },
+  { num: 2, den: 5, pct: 40 },
+  { num: 3, den: 5, pct: 60 },
+  { num: 4, den: 5, pct: 80 },
+  // 1/6 family
+  { num: 1, den: 6, pct: 16.7 },
+  { num: 2, den: 6, pct: 33.3 },
+  { num: 3, den: 6, pct: 50 },
+  { num: 4, den: 6, pct: 66.7 },
+  { num: 5, den: 6, pct: 83.3 },
+  // 1/7 family
+  { num: 1, den: 7, pct: 14.3 },
+  { num: 2, den: 7, pct: 28.6 },
+  { num: 3, den: 7, pct: 42.9 },
+  { num: 4, den: 7, pct: 57.1 },
+  { num: 5, den: 7, pct: 71.4 },
+  { num: 6, den: 7, pct: 85.7 },
+  // 1/8 family
+  { num: 1, den: 8, pct: 12.5 },
+  { num: 3, den: 8, pct: 37.5 },
+  { num: 5, den: 8, pct: 62.5 },
+  { num: 7, den: 8, pct: 87.5 },
+  // 1/9 family
+  { num: 1, den: 9, pct: 11.1 },
+  { num: 2, den: 9, pct: 22.2 },
+  { num: 3, den: 9, pct: 33.3 },
+  { num: 4, den: 9, pct: 44.4 },
+  { num: 5, den: 9, pct: 55.6 },
+  { num: 6, den: 9, pct: 66.7 },
+  { num: 7, den: 9, pct: 77.8 },
+  { num: 8, den: 9, pct: 88.9 },
+  // 1/10 family
+  { num: 1, den: 10, pct: 10 },
+  { num: 3, den: 10, pct: 30 },
+  { num: 7, den: 10, pct: 70 },
+  { num: 9, den: 10, pct: 90 },
+  // 1/11 family
+  { num: 1, den: 11, pct: 9.1 },
+  { num: 2, den: 11, pct: 18.2 },
+  { num: 3, den: 11, pct: 27.3 },
+  { num: 4, den: 11, pct: 36.4 },
+  { num: 5, den: 11, pct: 45.5 },
+  { num: 6, den: 11, pct: 54.5 },
+  { num: 7, den: 11, pct: 63.6 },
+  { num: 8, den: 11, pct: 72.7 },
+  { num: 9, den: 11, pct: 81.8 },
+  { num: 10, den: 11, pct: 90.9 },
+  // 1/12 family
+  { num: 1, den: 12, pct: 8.3 },
+  { num: 5, den: 12, pct: 41.7 },
+  { num: 7, den: 12, pct: 58.3 },
+  { num: 11, den: 12, pct: 91.7 },
+  // 1/13 to 1/20 select
+  { num: 1, den: 13, pct: 7.7 },
+  { num: 2, den: 13, pct: 15.4 },
+  { num: 1, den: 14, pct: 7.1 },
+  { num: 3, den: 14, pct: 21.4 },
+  { num: 1, den: 15, pct: 6.7 },
+  { num: 2, den: 15, pct: 13.3 },
+  { num: 4, den: 15, pct: 26.7 },
+  { num: 7, den: 15, pct: 46.7 },
+  { num: 1, den: 16, pct: 6.25 },
+  { num: 3, den: 16, pct: 18.75 },
+  { num: 5, den: 16, pct: 31.25 },
+  { num: 1, den: 17, pct: 5.9 },
+  { num: 3, den: 17, pct: 17.6 },
+  { num: 1, den: 18, pct: 5.6 },
+  { num: 5, den: 18, pct: 27.8 },
+  { num: 1, den: 19, pct: 5.3 },
+  { num: 3, den: 19, pct: 15.8 },
+  { num: 1, den: 20, pct: 5 },
+  { num: 3, den: 20, pct: 15 },
+  { num: 7, den: 20, pct: 35 },
+];
+
+function fracKey(num, den) { return `${num}_${den}`; }
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+function simplify(num, den) {
+  const g = gcd(num, den);
+  return { num: num / g, den: den / g };
+}
+
+// ==================== UTILITY ====================
+function showToast(msg, color = '#1e3a5f') {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.background = color;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function randChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+function getLevel(score) {
+  if (score >= 90) return { name: '大师', color: '#f59e0b', icon: '👑' };
+  if (score >= 80) return { name: '精通', color: '#8b5cf6', icon: '🎯' };
+  if (score >= 65) return { name: '熟练', color: '#10b981', icon: '📈' };
+  if (score >= 45) return { name: '入门', color: '#3b82f6', icon: '📖' };
+  return { name: '菜鸟', color: '#6b7280', icon: '🐣' };
+}
+
+function getOverallScore() {
+  const stats = Object.values(state.dailyStats);
+  if (stats.length === 0) return 0;
+  const totalQ = stats.reduce((a, b) => a + b.total, 0);
+  const totalC = stats.reduce((a, b) => a + b.correct, 0);
+  return totalQ === 0 ? 0 : Math.round(totalC / totalQ * 100);
+}
+
+// ==================== TAB NAVIGATION ====================
+let currentTab = 'home';
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('text-[#1e3a5f]', btn.dataset.tab === tab);
+    btn.classList.toggle('text-gray-400', btn.dataset.tab !== tab);
+  });
+  if (tab === 'home') renderDashboard();
+  else if (tab === 'feature') { currentFeatureMode = 'browse'; renderFeature(); }
+  else if (tab === 'calc') renderCalcMenu();
+  else if (tab === 'bank') renderBank();
+}
+
+// ==================== DASHBOARD ====================
+let lineChart = null, radarChart = null;
+
+function renderDashboard() {
+  const el = document.getElementById('dashboard-content');
+  const now = new Date();
+  const weekDays = ['周日','周一','周二','周三','周四','周五','周六'];
+  const todayS = state.dailyStats[todayKey()] || { count: 0, correct: 0, total: 0, totalTime: 0 };
+  const score = getOverallScore();
+  const level = getLevel(score);
+  const wrongCount = state.wrongQuestions.length;
+
+  el.innerHTML = `
+    <div class="mb-4">
+      <h2 class="text-xl font-bold text-[#1e3a5f]">欢迎回来！</h2>
+      <p class="text-gray-500 text-sm">${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${weekDays[now.getDay()]}</p>
+    </div>
+    <div class="bg-gradient-to-r from-[#1e3a5f] to-[#2d5a8e] rounded-xl p-4 text-white mb-4 card-shadow">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-sm text-gray-300">当前等级</span>
+        <span class="level-badge bg-white/20">${level.icon} ${level.name}</span>
+      </div>
+      <div class="flex justify-around text-center">
+        <div><div class="text-2xl font-bold">${todayS.count}</div><div class="text-xs text-gray-300">今日练习</div></div>
+        <div><div class="text-2xl font-bold">${todayS.total ? Math.round(todayS.correct/todayS.total*100) : 0}%</div><div class="text-xs text-gray-300">正确率</div></div>
+        <div><div class="text-2xl font-bold">${todayS.totalTime ? formatTime(todayS.totalTime) : '0:00'}</div><div class="text-xs text-gray-300">总用时</div></div>
+      </div>
+    </div>
+    ${wrongCount > 0 ? `
+    <div class="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center justify-between">
+      <span class="text-red-600 text-sm font-medium">⚠️ 有 ${wrongCount} 道错题待复习</span>
+      <button onclick="switchTab('calc');startWrongReview()" class="btn-press bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg">去复习</button>
+    </div>` : ''}
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <button onclick="switchTab('feature');switchFeatureMode('flashcard')" class="btn-press bg-white rounded-xl p-4 card-shadow text-left">
+        <div class="text-2xl mb-2">📊</div>
+        <div class="font-semibold text-[#1e3a5f] text-sm">敏感数速记</div>
+        <div class="text-xs text-gray-400 mt-1">闪卡/限时挑战</div>
+      </button>
+      <button onclick="switchTab('calc')" class="btn-press bg-white rounded-xl p-4 card-shadow text-left">
+        <div class="text-2xl mb-2">⚡</div>
+        <div class="font-semibold text-[#1e3a5f] text-sm">速算训练</div>
+        <div class="text-xs text-gray-400 mt-1">6种题型可选</div>
+      </button>
+      <button onclick="switchTab('bank')" class="btn-press bg-white rounded-xl p-4 card-shadow text-left">
+        <div class="text-2xl mb-2">📝</div>
+        <div class="font-semibold text-[#1e3a5f] text-sm">题目导入</div>
+        <div class="text-xs text-gray-400 mt-1">自定义题库</div>
+      </button>
+      <button onclick="showShareModal()" class="btn-press bg-white rounded-xl p-4 card-shadow text-left">
+        <div class="text-2xl mb-2">🏆</div>
+        <div class="font-semibold text-[#1e3a5f] text-sm">分享成绩</div>
+        <div class="text-xs text-gray-400 mt-1">生成海报</div>
+      </button>
+    </div>
+    <div class="bg-white rounded-xl p-4 card-shadow mb-4">
+      <h3 class="font-semibold text-[#1e3a5f] text-sm mb-3">最近7天正确率</h3>
+      <canvas id="lineChart" height="180"></canvas>
+    </div>
+    <div class="bg-white rounded-xl p-4 card-shadow mb-4">
+      <h3 class="font-semibold text-[#1e3a5f] text-sm mb-3">各题型能力雷达</h3>
+      <canvas id="radarChart" height="250"></canvas>
+    </div>
+  `;
+
+  // Line chart
+  const labels = [];
+  const data7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const ds = state.dailyStats[k];
+    labels.push(`${d.getMonth()+1}/${d.getDate()}`);
+    data7.push(ds && ds.total > 0 ? Math.round(ds.correct / ds.total * 100) : 0);
+  }
+
+  const lineCtx = document.getElementById('lineChart');
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(lineCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: '正确率%',
+        data: data7,
+        borderColor: '#1e3a5f',
+        backgroundColor: 'rgba(30,58,95,0.1)',
+        fill: true, tension: 0.4, pointRadius: 4,
+        pointBackgroundColor: '#1e3a5f'
+      }]
+    },
+    options: {
+      responsive: true, plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  // Radar chart
+  const typeNames = ['截位直除', '特征数字', '基期量', '增长量', '比重差', '分数比较'];
+  const radarData = typeNames.map((name, i) => {
+    const history = state.calcHistory.filter(h => h.typeIdx === i);
+    if (history.length === 0) return 0;
+    const avg = history.reduce((a, b) => a + b.score / b.total, 0) / history.length;
+    return Math.round(avg);
+  });
+
+  const radarCtx = document.getElementById('radarChart');
+  if (radarChart) radarChart.destroy();
+  radarChart = new Chart(radarCtx, {
+    type: 'radar',
+    data: {
+      labels: typeNames,
+      datasets: [{
+        label: '能力值',
+        data: radarData,
+        backgroundColor: 'rgba(30,58,95,0.15)',
+        borderColor: '#1e3a5f', pointBackgroundColor: '#f59e0b',
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, display: false } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+// ==================== FEATURE NUMBERS MODULE ====================
+let currentFeatureMode = 'browse';
+let flashcardData = null;
+let challengeTimer = null;
+let challengeState = null;
+
+function switchFeatureMode(mode) {
+  currentFeatureMode = mode;
+  document.querySelectorAll('.sub-tab').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+  if (mode === 'challenge' && challengeTimer) { clearInterval(challengeTimer); challengeTimer = null; }
+  renderFeature();
+}
+
+function renderFeature() {
+  const el = document.getElementById('feature-content');
+  if (currentFeatureMode === 'browse') renderFeatureBrowse(el);
+  else if (currentFeatureMode === 'flashcard') renderFeatureFlashcard(el);
+  else if (currentFeatureMode === 'challenge') renderFeatureChallenge(el);
+  else if (currentFeatureMode === 'progress') renderFeatureProgress(el);
+}
+
+function renderFeatureBrowse(el) {
+  const grouped = {};
+  FRACTION_DB.forEach(f => {
+    if (!grouped[f.den]) grouped[f.den] = [];
+    grouped[f.den].push(f);
+  });
+  const sortedDens = Object.keys(grouped).sort((a, b) => a - b);
+
+  el.innerHTML = `
+    <h3 class="font-bold text-[#1e3a5f] mb-3">百化分速查表</h3>
+    <div class="bg-white rounded-xl card-shadow overflow-hidden">
+      <div class="overflow-x-auto max-h-[60vh]">
+        <table>
+          <thead><tr><th>分数</th><th>百分数</th><th>小数</th></tr></thead>
+          <tbody>
+            ${sortedDens.map(den => grouped[den].sort((a,b)=>a.num-b.num).map(f => {
+              const dec = (f.pct / 100).toFixed(f.pct % 1 === 0 ? 0 : (f.pct * 10) % 1 === 0 ? 2 : f.pct % 0.1 === 0 ? 1 : 3);
+              const sk = fracKey(f.num, f.den);
+              const prof = state.featureProficiency[sk];
+              let dot = '';
+              if (prof) {
+                const rate = prof.correct / Math.max(1, prof.correct + prof.wrong);
+                dot = rate >= 0.8 ? '<span class="inline-block w-2 h-2 rounded-full bg-green-500 ml-1"></span>' :
+                      rate >= 0.5 ? '<span class="inline-block w-2 h-2 rounded-full bg-yellow-500 ml-1"></span>' :
+                      '<span class="inline-block w-2 h-2 rounded-full bg-red-500 ml-1"></span>';
+              }
+              return `<tr><td class="font-mono">${f.num}/${f.den}${dot}</td><td>${f.pct}%</td><td class="font-mono text-gray-500">${dec}</td></tr>`;
+            }).join('')).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="text-xs text-gray-400 mt-2 text-center">
+      <span class="inline-block w-2 h-2 rounded-full bg-green-500"></span> 熟练
+      <span class="inline-block w-2 h-2 rounded-full bg-yellow-500 ml-2"></span> 一般
+      <span class="inline-block w-2 h-2 rounded-full bg-red-500 ml-2"></span> 薄弱
+    </p>
+  `;
+}
+
+function renderFeatureFlashcard(el) {
+  if (!flashcardData) {
+    flashcardData = { flipped: false, idx: 0, items: shuffle(FRACTION_DB).map(f => ({ ...f })) };
+  }
+  const item = flashcardData.items[flashcardData.idx];
+  const sk = fracKey(item.num, item.den);
+  const prof = state.featureProficiency[sk] || { correct: 0, wrong: 0 };
+  const rate = (prof.correct + prof.wrong) > 0 ? Math.round(prof.correct / (prof.correct + prof.wrong) * 100) : 0;
+
+  el.innerHTML = `
+    <h3 class="font-bold text-[#1e3a5f] mb-3">闪卡模式 <span class="text-sm font-normal text-gray-400">(${flashcardData.idx + 1}/${flashcardData.items.length})</span></h3>
+    <div class="flashcard mb-4" onclick="flipCard()">
+      <div class="flashcard-inner ${flashcardData.flipped ? 'flipped' : ''}" style="min-height: 200px; position: relative;">
+        <div class="flashcard-front absolute inset-0 bg-white rounded-xl card-shadow-lg flex flex-col items-center justify-center p-6">
+          <p class="text-gray-500 text-sm mb-2">这个百分数对应哪个分数？</p>
+          <p class="text-4xl font-bold text-[#1e3a5f]">${item.pct}%</p>
+          <p class="text-sm text-gray-400 mt-4">点击翻转查看答案</p>
+        </div>
+        <div class="flashcard-back absolute inset-0 bg-gradient-to-br from-[#1e3a5f] to-[#2d5a8e] rounded-xl card-shadow-lg flex flex-col items-center justify-center p-6 text-white">
+          <p class="text-sm text-gray-300 mb-2">${item.pct}% =</p>
+          <p class="text-5xl font-bold">${item.num}/${item.den}</p>
+          <p class="text-sm text-gray-300 mt-3">= ${(item.pct/100).toFixed(item.pct%1===0?0:item.pct%0.1===0?1:3)}</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl p-3 card-shadow mb-4">
+      <div class="flex justify-between text-sm">
+        <span>熟练度：<strong>${rate}%</strong></span>
+        <span class="text-green-600">答对 ${prof.correct}</span>
+        <span class="text-red-600">答错 ${prof.wrong}</span>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <button onclick="markFlashcard(true)" class="btn-press bg-green-500 text-white rounded-xl py-3 font-medium">✓ 记住了</button>
+      <button onclick="markFlashcard(false)" class="btn-press bg-red-500 text-white rounded-xl py-3 font-medium">✗ 没记住</button>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="flashcardPrev()" class="btn-press flex-1 bg-gray-100 rounded-xl py-2 text-sm">上一个</button>
+      <button onclick="flashcardNext()" class="btn-press flex-1 bg-gray-100 rounded-xl py-2 text-sm">下一个</button>
+    </div>
+  `;
+}
+
+function flipCard() {
+  flashcardData.flipped = !flashcardData.flipped;
+  const inner = document.querySelector('.flashcard-inner');
+  if (inner) inner.classList.toggle('flipped', flashcardData.flipped);
+}
+
+function markFlashcard(correct) {
+  const item = flashcardData.items[flashcardData.idx];
+  const sk = fracKey(item.num, item.den);
+  if (!state.featureProficiency[sk]) state.featureProficiency[sk] = { correct: 0, wrong: 0 };
+  if (correct) state.featureProficiency[sk].correct++;
+  else state.featureProficiency[sk].wrong++;
+  saveState();
+  showToast(correct ? '太棒了！继续保持！' : '别灰心，多练几次！', correct ? '#10b981' : '#ef4444');
+  flashcardNext();
+}
+
+function flashcardPrev() {
+  flashcardData.idx = (flashcardData.idx - 1 + flashcardData.items.length) % flashcardData.items.length;
+  flashcardData.flipped = false;
+  renderFeature();
+}
+function flashcardNext() {
+  flashcardData.idx = (flashcardData.idx + 1) % flashcardData.items.length;
+  flashcardData.flipped = false;
+  renderFeature();
+}
+
+function renderFeatureChallenge(el) {
+  if (!challengeState) {
+    challengeState = { score: 0, total: 0, timeLeft: 60, current: null, started: false };
+    challengeNextQuestion();
+  }
+  const c = challengeState;
+
+  el.innerHTML = `
+    <h3 class="font-bold text-[#1e3a5f] mb-3">限时60秒挑战</h3>
+    ${!c.started ? `
+      <div class="text-center py-10">
+        <p class="text-5xl mb-4">⏱️</p>
+        <p class="text-gray-600 mb-6">在60秒内答对尽可能多的百化分转换题</p>
+        <button onclick="startChallenge()" class="btn-press bg-[#1e3a5f] text-white rounded-xl px-8 py-3 font-medium text-lg">开始挑战</button>
+        ${state.challengeBest > 0 ? `<p class="text-sm text-amber-600 mt-4">🏆 历史最佳：${state.challengeBest}题</p>` : ''}
+      </div>
+    ` : `
+      <div class="flex items-center justify-between mb-4">
+        <div class="bg-red-50 text-red-600 font-mono font-bold text-lg px-3 py-1 rounded-lg">${c.timeLeft}s</div>
+        <div class="text-sm text-gray-500">得分：<strong class="text-[#f59e0b]">${c.score}</strong> / ${c.total}</div>
+      </div>
+      <div class="bg-white rounded-xl card-shadow p-6 mb-4 text-center">
+        <p class="text-gray-500 text-sm mb-3">这个百分数等于哪个分数？</p>
+        <p class="text-4xl font-bold text-[#1e3a5f] mb-4">${c.current.pct}%</p>
+        <div class="grid grid-cols-2 gap-3">
+          ${c.current.options.map((opt, i) => `
+            <button onclick="answerChallenge(${i})" class="option-btn btn-press border-2 border-gray-200 rounded-xl py-3 font-mono font-medium text-sm">
+              ${opt.num}/${opt.den}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `}
+  `;
+}
+
+function challengeNextQuestion() {
+  const correct = randChoice(FRACTION_DB);
+  const wrongPool = FRACTION_DB.filter(f => fracKey(f.num, f.den) !== fracKey(correct.num, correct.den));
+  const wrongs = shuffle(wrongPool).slice(0, 3);
+  const options = shuffle([correct, ...wrongs]);
+  challengeState.current = { ...correct, options };
+}
+
+function startChallenge() {
+  challengeState = { score: 0, total: 0, timeLeft: 60, current: null, started: true };
+  challengeNextQuestion();
+  challengeTimer = setInterval(() => {
+    challengeState.timeLeft--;
+    const timerEl = document.querySelector('.text-red-600.font-mono');
+    if (timerEl) timerEl.textContent = challengeState.timeLeft + 's';
+    if (challengeState.timeLeft <= 0) {
+      clearInterval(challengeTimer); challengeTimer = null;
+      endChallenge();
+    }
+  }, 1000);
+  renderFeature();
+}
+
+function answerChallenge(idx) {
+  if (!challengeState || !challengeState.started) return;
+  const c = challengeState;
+  const selected = c.current.options[idx];
+  c.total++;
+  const isCorrect = selected.num === c.current.num && selected.den === c.current.den;
+  if (isCorrect) c.score++;
+
+  // Update proficiency
+  const sk = fracKey(c.current.num, c.current.den);
+  if (!state.featureProficiency[sk]) state.featureProficiency[sk] = { correct: 0, wrong: 0 };
+  if (isCorrect) state.featureProficiency[sk].correct++;
+  else state.featureProficiency[sk].wrong++;
+  saveState();
+
+  // Visual feedback
+  const btns = document.querySelectorAll('.option-btn');
+  btns.forEach((btn, i) => {
+    if (i === idx) btn.classList.add(isCorrect ? 'correct' : 'wrong');
+    if (c.current.options[i].num === c.current.num && c.current.options[i].den === c.current.den && i !== idx) {
+      btn.classList.add('correct');
+    }
+  });
+
+  ensureTodayStats();
+  state.dailyStats[todayKey()].count++;
+  if (isCorrect) state.dailyStats[todayKey()].correct++;
+  state.dailyStats[todayKey()].total++;
+  saveState();
+
+  setTimeout(() => {
+    challengeNextQuestion();
+    renderFeature();
+  }, 400);
+}
+
+function endChallenge() {
+  if (challengeState.score > state.challengeBest) state.challengeBest = challengeState.score;
+  saveState();
+  const el = document.getElementById('feature-content');
+  el.innerHTML = `
+    <div class="text-center py-10 animate-slideUp">
+      <p class="text-6xl mb-4">${challengeState.score >= 20 ? '🏆' : challengeState.score >= 10 ? '🎉' : '💪'}</p>
+      <h3 class="text-2xl font-bold text-[#1e3a5f] mb-2">挑战结束！</h3>
+      <div class="flex justify-center gap-8 my-6">
+        <div class="text-center"><div class="text-3xl font-bold text-[#f59e0b]">${challengeState.score}</div><div class="text-sm text-gray-400">答对</div></div>
+        <div class="text-center"><div class="text-3xl font-bold">${challengeState.total}</div><div class="text-sm text-gray-400">总计</div></div>
+        <div class="text-center"><div class="text-3xl font-bold text-[#10b981]">${challengeState.total ? Math.round(challengeState.score/challengeState.total*100) : 0}%</div><div class="text-sm text-gray-400">正确率</div></div>
+      </div>
+      <p class="text-sm text-amber-600 mb-6">🏆 历史最佳：${state.challengeBest}题</p>
+      <button onclick="challengeState=null;renderFeature()" class="btn-press bg-[#1e3a5f] text-white rounded-xl px-8 py-3 font-medium">再来一次</button>
+    </div>
+  `;
+}
+
+function renderFeatureProgress(el) {
+  const all = FRACTION_DB.map(f => {
+    const sk = fracKey(f.num, f.den);
+    const prof = state.featureProficiency[sk] || { correct: 0, wrong: 0 };
+    const total = prof.correct + prof.wrong;
+    const rate = total > 0 ? prof.correct / total : 0;
+    let color = 'bg-gray-300';
+    if (total > 0) {
+      if (rate >= 0.8) color = 'bg-green-500';
+      else if (rate >= 0.5) color = 'bg-yellow-500';
+      else color = 'bg-red-500';
+    }
+    return { ...f, prof, total, rate, color };
+  });
+
+  const mastered = all.filter(f => f.total > 0 && f.rate >= 0.8).length;
+  const learning = all.filter(f => f.total > 0 && f.rate >= 0.5 && f.rate < 0.8).length;
+  const weak = all.filter(f => f.total > 0 && f.rate < 0.5).length;
+  const untried = all.filter(f => f.total === 0).length;
+
+  el.innerHTML = `
+    <h3 class="font-bold text-[#1e3a5f] mb-3">熟练度追踪</h3>
+    <div class="grid grid-cols-4 gap-2 mb-4">
+      <div class="bg-green-50 rounded-lg p-2 text-center"><div class="text-lg font-bold text-green-600">${mastered}</div><div class="text-xs text-gray-500">熟练</div></div>
+      <div class="bg-yellow-50 rounded-lg p-2 text-center"><div class="text-lg font-bold text-yellow-600">${learning}</div><div class="text-xs text-gray-500">一般</div></div>
+      <div class="bg-red-50 rounded-lg p-2 text-center"><div class="text-lg font-bold text-red-600">${weak}</div><div class="text-xs text-gray-500">薄弱</div></div>
+      <div class="bg-gray-100 rounded-lg p-2 text-center"><div class="text-lg font-bold text-gray-500">${untried}</div><div class="text-xs text-gray-500">未练</div></div>
+    </div>
+    <div class="bg-white rounded-xl card-shadow overflow-hidden">
+      <div class="overflow-x-auto max-h-[55vh]">
+        <table>
+          <thead><tr><th>分数</th><th>百分数</th><th>答对</th><th>答错</th><th>熟练度</th></tr></thead>
+          <tbody>
+            ${all.sort((a,b)=>a.rate-b.rate).map(f => `
+              <tr>
+                <td class="font-mono">${f.num}/${f.den}</td>
+                <td>${f.pct}%</td>
+                <td class="text-green-600">${f.prof.correct}</td>
+                <td class="text-red-600">${f.prof.wrong}</td>
+                <td><div class="flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden"><div class="h-full ${f.color} rounded-full" style="width:${Math.round(f.rate*100)}%"></div></div>
+                  <span class="text-xs text-gray-500">${f.total > 0 ? Math.round(f.rate*100)+'%' : '-'}</span>
+                </div></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== SPEED CALC MODULE ====================
+const CALC_TYPES = [
+  { id: 'truncate', name: '截位直除', icon: '✂️', tip: '截取分子分母前N位进行直除，看首位商' },
+  { id: 'feature', name: '特征数字', icon: '🔢', tip: '将百分数转化为分数简化计算' },
+  { id: 'base', name: '基期量估算', icon: '📐', tip: '基期 = 现期 ÷ (1+r%)，约分简化' },
+  { id: 'growth', name: '增长量估算', icon: '📈', tip: '增长量 = 现期 × r% ÷ (1+r%)' },
+  { id: 'weight', name: '比重差估算', icon: '⚖️', tip: '比重差 = A/B - C/D，转化为分数计算' },
+  { id: 'compare', name: '分数比较', icon: '🔍', tip: '比较两分数大小：化同分子/分母，看剩余' },
+];
+
+let calcSession = null;
+
+function renderCalcMenu() {
+  const el = document.getElementById('calc-content');
+  el.innerHTML = `
+    <h3 class="font-bold text-[#1e3a5f] mb-3">速算训练</h3>
+    <p class="text-sm text-gray-500 mb-4">选择题型开始练习，每次10道题</p>
+    <div class="space-y-3 mb-4">
+      ${CALC_TYPES.map((t, i) => `
+        <button onclick="startCalcSession(${i})" class="btn-press bg-white rounded-xl p-4 card-shadow w-full flex items-center gap-3 text-left">
+          <span class="text-2xl">${t.icon}</span>
+          <div class="flex-1">
+            <div class="font-semibold text-[#1e3a5f] text-sm">${t.name}</div>
+            <div class="text-xs text-gray-400">${t.tip}</div>
+          </div>
+          <span class="text-gray-300">▶</span>
+        </button>
+      `).join('')}
+    </div>
+    ${state.wrongQuestions.length > 0 ? `
+    <button onclick="startWrongReview()" class="btn-press w-full bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm font-medium mb-3">
+      📋 错题复习（${state.wrongQuestions.length}题）
+    </button>` : ''}
+  `;
+}
+
+function startCalcSession(typeIdx) {
+  const difficulties = ['初级', '中级', '高级'];
+  showModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">${CALC_TYPES[typeIdx].icon} ${CALC_TYPES[typeIdx].name}</h3>
+      <p class="text-sm text-gray-500 mb-4">${CALC_TYPES[typeIdx].tip}</p>
+      <div class="space-y-3">
+        <div class="text-sm font-medium text-gray-600">选择难度</div>
+        ${difficulties.map((d, i) => `
+          <button onclick="beginCalcSession(${typeIdx},${i})" class="btn-press w-full bg-gray-50 rounded-xl p-3 text-left text-sm font-medium hover:bg-gray-100 transition">
+            ${['🌱', '🔥', '💀'][i]} ${d}
+            <span class="text-gray-400 text-xs ml-2">${['数字较小，适合入门','中等复杂度','大数字，需精算'][i]}</span>
+          </button>
+        `).join('')}
+      </div>
+      <button onclick="closeModal()" class="btn-press w-full mt-4 text-gray-400 text-sm">取消</button>
+    </div>
+  `);
+}
+
+function generateCalcQuestions(typeIdx, difficulty) {
+  const questions = [];
+  for (let q = 0; q < 10; q++) {
+    let question = null;
+    switch(typeIdx) {
+      case 0: question = genTruncateQ(difficulty); break;
+      case 1: question = genFeatureQ(difficulty); break;
+      case 2: question = genBaseQ(difficulty); break;
+      case 3: question = genGrowthQ(difficulty); break;
+      case 4: question = genWeightQ(difficulty); break;
+      case 5: question = genCompareQ(difficulty); break;
+    }
+    if (question) questions.push(question);
+  }
+  return questions;
+}
+
+function makeOptions(correct, range, decimals = 0) {
+  const opts = new Set([correct]);
+  const step = Math.pow(10, -decimals) || 1;
+  let attempts = 0;
+  while (opts.size < 4 && attempts < 100) {
+    const offset = (Math.random() < 0.5 ? -1 : 1) * (randInt(1, range) * step);
+    const val = Math.round((correct + offset) * Math.pow(10, decimals)) / Math.pow(10, decimals);
+    if (val > 0) opts.add(val);
+    attempts++;
+  }
+  const labels = ['A', 'B', 'C', 'D'];
+  const arr = Array.from(opts).slice(0, 4);
+  const correctIdx = arr.indexOf(correct);
+  return arr.map((v, i) => ({ label: labels[i], value: v, correct: i === correctIdx }));
+}
+
+function formatNum(n) { return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 }); }
+
+// Q1: Truncate division
+function genTruncateQ(difficulty) {
+  const digitLevels = [2, 3, 3];
+  const digits = digitLevels[difficulty];
+  const divRange = difficulty === 0 ? [2, 5] : difficulty === 1 ? [3, 9] : [7, 15];
+  const den = randInt(divRange[0], divRange[1]);
+  const num = randInt(Math.round(den * 1.5), den * digits);
+  const exact = num / den;
+  const truncNum = parseInt(String(num).padEnd(digits, '0').substring(0, digits));
+  const truncDen = parseInt(String(den).substring(0, Math.min(2, String(den).length)));
+  const truncResult = truncNum / truncDen;
+  const correct = Math.round(truncResult * 10) / 10;
+  return {
+    question: `截位计算：${formatNum(num)} ÷ ${formatNum(den)} ≈ ？`,
+    hint: `截取前${digits}位估算`,
+    options: makeOptions(correct, difficulty === 0 ? 3 : difficulty === 1 ? 5 : 8, 1),
+    correct,
+    explanation: `截取前${digits}位：${truncNum} ÷ ${truncDen} ≈ ${correct}，精确值${exact.toFixed(2)}`
+  };
+}
+
+// Q2: Feature number
+function genFeatureQ(difficulty) {
+  const frac = randChoice(FRACTION_DB);
+  const baseVal = difficulty === 0 ? randInt(100, 500) : difficulty === 1 ? randInt(1000, 5000) : randInt(10000, 50000);
+  const rate = frac.pct;
+  const result = Math.round(baseVal * frac.num / frac.den);
+  const opts = makeOptions(result, difficulty === 0 ? 50 : difficulty === 1 ? 200 : 500);
+  return {
+    question: `${formatNum(baseVal)} × ${rate}% = ？\n（提示：${rate}% = ${frac.num}/${frac.den}）`,
+    hint: `${rate}% 转化为 ${frac.num}/${frac.den}，乘法变除法`,
+    options: opts,
+    correct: result,
+    explanation: `${rate}% = ${frac.num}/${frac.den}，所以 ${formatNum(baseVal)} × ${frac.num}/${frac.den} = ${baseVal * frac.num} ÷ ${frac.den} = ${formatNum(result)}`
+  };
+}
+
+// Q3: Base period
+function genBaseQ(difficulty) {
+  const current = difficulty === 0 ? randInt(200, 999) : difficulty === 1 ? randInt(2000, 9999) : randInt(10000, 99999);
+  const rate = randChoice([3.2, 5.1, 7.3, 8.5, 9.8, 11.1, 12.5, 14.3, 16.7, 20, 25, 33.3]);
+  const exact = current / (1 + rate / 100);
+  const correct = Math.round(exact);
+  const opts = makeOptions(correct, difficulty === 0 ? 20 : difficulty === 1 ? 100 : 500);
+  const rateFrac = FRACTION_DB.find(f => f.pct === rate);
+  return {
+    question: `现期量 ${formatNum(current)}，增长率 ${rate}%\n基期量约为？`,
+    hint: `基期 = 现期 ÷ (1+r%)${rateFrac ? `，${rate}% ≈ 1/${rateFrac.den}` : ''}`,
+    options: opts,
+    correct,
+    explanation: `基期 = ${formatNum(current)} ÷ (1+${rate}%) ≈ ${formatNum(current)} ÷ ${(1 + rate/100).toFixed(3)} ≈ ${formatNum(correct)}`
+  };
+}
+
+// Q4: Growth amount
+function genGrowthQ(difficulty) {
+  const current = difficulty === 0 ? randInt(200, 999) : difficulty === 1 ? randInt(2000, 9999) : randInt(10000, 99999);
+  const rate = randChoice([3.2, 5.1, 7.3, 8.5, 9.8, 11.1, 12.5, 14.3, 16.7, 20]);
+  const exact = current * rate / 100 / (1 + rate / 100);
+  const correct = Math.round(exact);
+  const opts = makeOptions(correct, difficulty === 0 ? 10 : difficulty === 1 ? 50 : 200);
+  return {
+    question: `现期量 ${formatNum(current)}，增长率 ${rate}%\n增长量约为？`,
+    hint: `增长量 = 现期 × r% ÷ (1+r%)`,
+    options: opts,
+    correct,
+    explanation: `增长量 = ${formatNum(current)} × ${rate}% ÷ (1+${rate}%) = ${exact.toFixed(1)} ≈ ${formatNum(correct)}`
+  };
+}
+
+// Q5: Weight difference
+function genWeightQ(difficulty) {
+  const d = difficulty === 0 ? 1 : difficulty === 1 ? 10 : 100;
+  const a = randInt(3, 9) * d * 100 + randInt(0, 99) * d;
+  const b = randInt(3, 9) * d * 100 + randInt(0, 99) * d;
+  const c = randInt(3, 9) * d * 100 + randInt(0, 99) * d;
+  const dd = randInt(3, 9) * d * 100 + randInt(0, 99) * d;
+  const r1 = a / b, r2 = c / dd;
+  const diff = r1 - r2;
+  const correct = Math.round(diff * 1000) / 10;
+  const opts = makeOptions(correct, difficulty === 0 ? 3 : difficulty === 1 ? 5 : 10, 1);
+  return {
+    question: `求比重差：${formatNum(a)}/${formatNum(b)} - ${formatNum(c)}/${formatNum(dd)} ≈ ？`,
+    hint: `化为相同分母或估算各自商值后相减`,
+    options: opts,
+    correct,
+    explanation: `${formatNum(a)}/${formatNum(b)} ≈ ${r1.toFixed(3)}，${formatNum(c)}/${formatNum(dd)} ≈ ${r2.toFixed(3)}，差 ≈ ${correct}%`
+  };
+}
+
+// Q6: Fraction comparison
+function genCompareQ(difficulty) {
+  const d = difficulty === 0 ? 1 : difficulty === 1 ? 10 : 100;
+  let n1, d1, n2, d2;
+  do {
+    n1 = randInt(2, 9) * d + (d > 1 ? randInt(0, 9) * (d/10) : 0);
+    d1 = randInt(3, 9) * d + (d > 1 ? randInt(0, 9) * (d/10) : 0);
+    n2 = randInt(2, 9) * d + (d > 1 ? randInt(0, 9) * (d/10) : 0);
+    d2 = randInt(3, 9) * d + (d > 1 ? randInt(0, 9) * (d/10) : 0);
+  } while (n1 === n2 && d1 === d2);
+
+  n1 = Math.round(n1); d1 = Math.round(d1); n2 = Math.round(n2); d2 = Math.round(d2);
+  const r1 = n1 / d1, r2 = n2 / d2;
+  const correct = r1 > r2 ? 'A > B' : r1 < r2 ? 'A < B' : 'A = B';
+  return {
+    question: `比较大小：A = ${formatNum(n1)}/${formatNum(d1)}，B = ${formatNum(n2)}/${formatNum(d2)}`,
+    hint: `可尝试化同分子或同分母比较，或交叉相乘`,
+    options: [
+      { label: 'A', value: 'A > B', correct: correct === 'A > B' },
+      { label: 'B', value: 'A < B', correct: correct === 'A < B' },
+      { label: 'C', value: 'A = B', correct: correct === 'A = B' },
+    ],
+    correct,
+    explanation: `A = ${(r1*100).toFixed(2)}%，B = ${(r2*100).toFixed(2)}%，所以 ${correct}`
+  };
+}
+
+function beginCalcSession(typeIdx, difficulty) {
+  closeModal();
+  const questions = generateCalcQuestions(typeIdx, difficulty);
+  calcSession = {
+    typeIdx, difficulty,
+    questions,
+    currentQ: 0,
+    answers: [],
+    startTime: Date.now(),
+    questionStart: Date.now(),
+    finished: false
+  };
+  renderCalcQuestion();
+}
+
+function renderCalcQuestion() {
+  const el = document.getElementById('calc-content');
+  const s = calcSession;
+  const q = s.questions[s.currentQ];
+  const elapsed = Math.floor((Date.now() - s.startTime) / 1000);
+  const qElapsed = Math.floor((Date.now() - s.questionStart) / 1000);
+  const diffNames = ['初级', '中级', '高级'];
+
+  // Start timer for this question
+  if (!s.questionTimer) {
+    s.questionTimer = setInterval(() => {
+      const qe = Math.floor((Date.now() - s.questionStart) / 1000);
+      const te = Math.floor((Date.now() - s.startTime) / 1000);
+      const teEl = document.getElementById('total-timer');
+      const qeEl = document.getElementById('question-timer');
+      if (teEl) teEl.textContent = formatTime(te);
+      if (qeEl) qeEl.textContent = formatTime(qe);
+    }, 1000);
+  }
+
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-3">
+      <button onclick="endCalcSessionEarly()" class="btn-press text-gray-400 text-sm">✕ 退出</button>
+      <span class="text-sm text-gray-500">${CALC_TYPES[s.typeIdx].icon} ${CALC_TYPES[s.typeIdx].name} · ${diffNames[s.difficulty]}</span>
+      <span class="font-mono text-sm text-gray-500" id="total-timer">${formatTime(elapsed)}</span>
+    </div>
+    <div class="flex items-center gap-1 mb-4">
+      ${s.questions.map((_, i) => `<div class="h-1.5 flex-1 rounded-full ${i < s.currentQ ? (s.answers[i]?.correct ? 'bg-green-500' : 'bg-red-500') : i === s.currentQ ? 'bg-[#1e3a5f]' : 'bg-gray-200'}"></div>`).join('')}
+    </div>
+    <div class="bg-white rounded-xl card-shadow-lg p-5 mb-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm text-gray-500">第 ${s.currentQ + 1}/10 题</span>
+        <span class="font-mono text-sm text-[#f59e0b]" id="question-timer">${formatTime(qElapsed)}</span>
+      </div>
+      <p class="text-[#1e3a5f] font-semibold text-lg mb-4 whitespace-pre-line">${q.question}</p>
+      <div class="bg-blue-50 text-blue-700 text-xs rounded-lg p-2 mb-4">💡 ${q.hint}</div>
+      <div class="space-y-3">
+        ${q.options.map((opt, i) => `
+          <button onclick="answerCalcQuestion(${i})" class="option-btn btn-press w-full border-2 border-gray-200 rounded-xl p-3 text-left flex items-center gap-3">
+            <span class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-600">${opt.label}</span>
+            <span class="flex-1">${opt.value}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function answerCalcQuestion(idx) {
+  const s = calcSession;
+  if (!s || s.finished) return;
+  const q = s.questions[s.currentQ];
+  const selectedOpt = q.options[idx];
+  const isCorrect = selectedOpt.correct;
+
+  const qTime = Math.floor((Date.now() - s.questionStart) / 1000);
+  s.answers.push({ selected: idx, correct: isCorrect, time: qTime });
+
+  // Visual feedback
+  const btns = document.querySelectorAll('.option-btn');
+  btns.forEach((btn, i) => {
+    if (q.options[i].correct) btn.classList.add('correct');
+    if (i === idx && !isCorrect) btn.classList.add('wrong');
+    btn.onclick = null;
+  });
+
+  // Record wrong question
+  if (!isCorrect) {
+    state.wrongQuestions.push({
+      type: 'calc', typeIdx: s.typeIdx,
+      question: q.question, options: q.options.map(o => o.value),
+      correct: q.correct, userAnswer: q.options[idx].value,
+      explanation: q.explanation, date: todayKey()
+    });
+    saveState();
+  }
+
+  setTimeout(() => {
+    s.currentQ++;
+    s.questionStart = Date.now();
+    if (s.currentQ >= 10) {
+      finishCalcSession();
+    } else {
+      renderCalcQuestion();
+    }
+  }, 600);
+}
+
+function finishCalcSession() {
+  const s = calcSession;
+  if (s.questionTimer) { clearInterval(s.questionTimer); s.questionTimer = null; }
+  s.finished = true;
+
+  const score = s.answers.filter(a => a.correct).length;
+  const totalTime = Math.floor((Date.now() - s.startTime) / 1000);
+  const avgTime = Math.round(s.answers.reduce((a, b) => a + b.time, 0) / 10);
+
+  // Save history
+  state.calcHistory.push({
+    typeIdx: s.typeIdx, difficulty: s.difficulty,
+    score, total: 10, avgTime,
+    date: todayKey(), details: s.answers
+  });
+
+  // Save daily stats
+  ensureTodayStats();
+  state.dailyStats[todayKey()].count++;
+  state.dailyStats[todayKey()].correct += score;
+  state.dailyStats[todayKey()].total += 10;
+  state.dailyStats[todayKey()].totalTime += totalTime;
+  saveState();
+
+  renderCalcResult(s, score, totalTime, avgTime);
+}
+
+function endCalcSessionEarly() {
+  if (calcSession) {
+    if (calcSession.questionTimer) { clearInterval(calcSession.questionTimer); calcSession.questionTimer = null; }
+    if (calcSession.answers.length > 0 && !calcSession.finished) {
+      finishCalcSession();
+    } else {
+      calcSession = null;
+      renderCalcMenu();
+    }
+  }
+}
+
+function renderCalcResult(s, score, totalTime, avgTime) {
+  const el = document.getElementById('calc-content');
+  const pct = Math.round(score / 10 * 100);
+  const level = getLevel(pct);
+  const diffNames = ['初级', '中级', '高级'];
+
+  el.innerHTML = `
+    <div class="text-center animate-slideUp">
+      <div class="text-6xl mb-3">${pct >= 80 ? '🎉' : pct >= 60 ? '👍' : '💪'}</div>
+      <h3 class="text-xl font-bold text-[#1e3a5f] mb-1">${CALC_TYPES[s.typeIdx].name} · ${diffNames[s.difficulty]}</h3>
+      <div class="level-badge bg-white card-shadow mt-2 mb-4" style="color:${level.color}">${level.icon} ${level.name}</div>
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <div class="bg-white rounded-xl p-3 card-shadow"><div class="text-2xl font-bold ${pct >= 60 ? 'text-green-500' : 'text-red-500'}">${pct}%</div><div class="text-xs text-gray-400">正确率</div></div>
+        <div class="bg-white rounded-xl p-3 card-shadow"><div class="text-2xl font-bold text-[#1e3a5f]">${formatTime(avgTime)}</div><div class="text-xs text-gray-400">平均用时</div></div>
+        <div class="bg-white rounded-xl p-3 card-shadow"><div class="text-2xl font-bold text-[#f59e0b]">${formatTime(totalTime)}</div><div class="text-xs text-gray-400">总用时</div></div>
+      </div>
+      <div class="bg-white rounded-xl card-shadow overflow-hidden mb-4 text-left">
+        <h4 class="font-semibold text-[#1e3a5f] text-sm p-3 border-b">每题详情</h4>
+        <div class="divide-y max-h-[40vh] overflow-y-auto">
+          ${s.questions.map((q, i) => {
+            const a = s.answers[i];
+            return `
+              <div class="p-3 flex items-start gap-2">
+                <span class="w-6 h-6 rounded-full ${a ? (a.correct ? 'bg-green-500' : 'bg-red-500') : 'bg-gray-300'} text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5">${i+1}</span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm text-gray-700 line-clamp-2">${q.question.replace(/\n/g,' ')}</p>
+                  <p class="text-xs text-gray-400 mt-1">${a ? `用时${formatTime(a.time)}` : '未答'}</p>
+                  <p class="text-xs text-blue-600 mt-1">💡 ${q.explanation}</p>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="beginCalcSession(${s.typeIdx},${s.difficulty})" class="btn-press flex-1 bg-[#1e3a5f] text-white rounded-xl py-3 font-medium">再来一组</button>
+        <button onclick="calcSession=null;renderCalcMenu()" class="btn-press flex-1 bg-gray-100 rounded-xl py-3 font-medium">返回菜单</button>
+      </div>
+    </div>
+  `;
+}
+
+function startWrongReview() {
+  if (state.wrongQuestions.length === 0) { showToast('没有错题！'); return; }
+  calcSession = {
+    typeIdx: -1, difficulty: 0,
+    questions: state.wrongQuestions.slice(0, 10).map(wq => ({
+      question: wq.question,
+      options: wq.options.map((v, i) => ({ label: ['A','B','C','D'][i], value: v, correct: v === wq.correct })),
+      correct: wq.correct,
+      explanation: wq.explanation
+    })),
+    currentQ: 0,
+    answers: [],
+    startTime: Date.now(),
+    questionStart: Date.now(),
+    finished: false,
+    isReview: true
+  };
+  renderCalcQuestion();
+}
+
+// ==================== QUESTION BANK MODULE ====================
+function renderBank() {
+  const el = document.getElementById('bank-content');
+  const count = state.customQuestions.length;
+
+  el.innerHTML = `
+    <h3 class="font-bold text-[#1e3a5f] mb-3">题库管理</h3>
+    <div class="bg-gradient-to-r from-[#1e3a5f] to-[#2d5a8e] rounded-xl p-4 text-white mb-4 card-shadow">
+      <div class="flex items-center justify-between">
+        <span class="text-sm">已导入题目</span>
+        <span class="text-2xl font-bold">${count}</span>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <button onclick="showAddQuestionModal()" class="btn-press bg-white rounded-xl p-4 card-shadow text-center">
+        <div class="text-2xl mb-1">✏️</div>
+        <div class="text-sm font-medium text-[#1e3a5f]">手动添加</div>
+      </button>
+      <button onclick="showImportModal()" class="btn-press bg-white rounded-xl p-4 card-shadow text-center">
+        <div class="text-2xl mb-1">📋</div>
+        <div class="text-sm font-medium text-[#1e3a5f]">批量导入</div>
+      </button>
+    </div>
+    ${count > 0 ? `
+      <div class="flex gap-2 mb-3">
+        <button onclick="practiceCustomQuestions()" class="btn-press flex-1 bg-green-500 text-white rounded-xl py-3 font-medium text-sm">开始练习</button>
+        <button onclick="exportQuestions()" class="btn-press flex-1 bg-blue-500 text-white rounded-xl py-3 font-medium text-sm">导出JSON</button>
+        <button onclick="generateShareCode()" class="btn-press flex-1 bg-amber-500 text-white rounded-xl py-3 font-medium text-sm">分享码</button>
+      </div>
+      <div class="bg-white rounded-xl card-shadow overflow-hidden">
+        <div class="max-h-[40vh] overflow-y-auto divide-y">
+          ${state.customQuestions.map((q, i) => `
+            <div class="p-3 flex items-start gap-2">
+              <span class="text-xs text-gray-400 mt-1">${i+1}.</span>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-gray-700 line-clamp-2">${q.question}</p>
+                ${q.material ? `<p class="text-xs text-gray-400 mt-1 line-clamp-1">材料：${q.material.substring(0, 50)}...</p>` : ''}
+              </div>
+              <button onclick="deleteQuestion(${i})" class="text-red-400 text-xs flex-shrink-0">删除</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="flex gap-2 mt-3">
+        <button onclick="showImportShareCodeModal()" class="btn-press flex-1 bg-white border border-gray-200 rounded-xl py-2 text-sm text-gray-600">导入分享码</button>
+        <button onclick="clearAllQuestions()" class="btn-press flex-1 bg-red-50 text-red-500 rounded-xl py-2 text-sm">清空题库</button>
+      </div>
+    ` : `
+      <div class="text-center py-10 text-gray-400">
+        <p class="text-4xl mb-2">📭</p>
+        <p class="text-sm">题库为空，添加题目开始练习吧</p>
+      </div>
+      <div class="mt-3">
+        <button onclick="showImportShareCodeModal()" class="btn-press w-full bg-white border border-gray-200 rounded-xl py-2 text-sm text-gray-600">导入分享码</button>
+      </div>
+    `}
+  `;
+}
+
+function showAddQuestionModal() {
+  showModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">手动添加题目</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="text-sm font-medium text-gray-600">材料数据</label>
+          <textarea id="q-material" rows="2" class="w-full border rounded-lg p-2 text-sm mt-1" placeholder="题目所给的材料数据..."></textarea>
+        </div>
+        <div>
+          <label class="text-sm font-medium text-gray-600">题目 <span class="text-red-500">*</span></label>
+          <textarea id="q-question" rows="2" class="w-full border rounded-lg p-2 text-sm mt-1" placeholder="题目内容..."></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-sm font-medium text-gray-600">选项A</label><input id="q-opt-a" class="w-full border rounded-lg p-2 text-sm mt-1" placeholder="选项A"></div>
+          <div><label class="text-sm font-medium text-gray-600">选项B</label><input id="q-opt-b" class="w-full border rounded-lg p-2 text-sm mt-1" placeholder="选项B"></div>
+          <div><label class="text-sm font-medium text-gray-600">选项C</label><input id="q-opt-c" class="w-full border rounded-lg p-2 text-sm mt-1" placeholder="选项C"></div>
+          <div><label class="text-sm font-medium text-gray-600">选项D</label><input id="q-opt-d" class="w-full border rounded-lg p-2 text-sm mt-1" placeholder="选项D"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm font-medium text-gray-600">正确答案</label>
+            <select id="q-answer" class="w-full border rounded-lg p-2 text-sm mt-1">
+              <option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option>
+            </select>
+          </div>
+          <div><label class="text-sm font-medium text-gray-600">解析</label><input id="q-explanation" class="w-full border rounded-lg p-2 text-sm mt-1" placeholder="解题思路..."></div>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-4">
+        <button onclick="addQuestion()" class="btn-press flex-1 bg-[#1e3a5f] text-white rounded-xl py-2.5 font-medium">添加</button>
+        <button onclick="closeModal()" class="btn-press flex-1 bg-gray-100 rounded-xl py-2.5">取消</button>
+      </div>
+    </div>
+  `);
+}
+
+function addQuestion() {
+  const question = document.getElementById('q-question').value.trim();
+  if (!question) { showToast('请输入题目内容', '#ef4444'); return; }
+  const q = {
+    material: document.getElementById('q-material').value.trim(),
+    question,
+    options: [
+      document.getElementById('q-opt-a').value.trim() || 'A',
+      document.getElementById('q-opt-b').value.trim() || 'B',
+      document.getElementById('q-opt-c').value.trim() || 'C',
+      document.getElementById('q-opt-d').value.trim() || 'D'
+    ],
+    answer: parseInt(document.getElementById('q-answer').value),
+    explanation: document.getElementById('q-explanation').value.trim() || '无解析'
+  };
+  state.customQuestions.push(q);
+  saveState();
+  closeModal();
+  showToast('题目添加成功！');
+  renderBank();
+}
+
+function showImportModal() {
+  showModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">批量导入题目</h3>
+      <p class="text-sm text-gray-500 mb-3">粘贴JSON格式数据，格式如下：</p>
+      <pre class="bg-gray-50 text-xs p-3 rounded-lg mb-3 overflow-x-auto text-gray-600">[
+  {
+    "material": "材料内容...",
+    "question": "题目...",
+    "options": ["A选项", "B选项", "C选项", "D选项"],
+    "answer": 2,
+    "explanation": "解析..."
+  }
+]</pre>
+      <textarea id="import-json" rows="8" class="w-full border rounded-lg p-2 text-sm font-mono" placeholder="在此粘贴JSON数据..."></textarea>
+      <div class="flex gap-3 mt-4">
+        <button onclick="importQuestions()" class="btn-press flex-1 bg-[#1e3a5f] text-white rounded-xl py-2.5 font-medium">导入</button>
+        <button onclick="closeModal()" class="btn-press flex-1 bg-gray-100 rounded-xl py-2.5">取消</button>
+      </div>
+    </div>
+  `);
+}
+
+function importQuestions() {
+  const raw = document.getElementById('import-json').value.trim();
+  if (!raw) { showToast('请粘贴JSON数据', '#ef4444'); return; }
+  try {
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) throw new Error('必须为数组');
+    let count = 0;
+    data.forEach(item => {
+      if (item.question && Array.isArray(item.options)) {
+        state.customQuestions.push({
+          material: item.material || '',
+          question: item.question,
+          options: item.options,
+          answer: item.answer ?? 0,
+          explanation: item.explanation || '无解析'
+        });
+        count++;
+      }
+    });
+    saveState();
+    closeModal();
+    showToast(`成功导入 ${count} 道题目！`);
+    renderBank();
+  } catch(e) {
+    showToast('JSON格式错误：' + e.message, '#ef4444');
+  }
+}
+
+function practiceCustomQuestions() {
+  if (state.customQuestions.length === 0) { showToast('题库为空'); return; }
+  const questions = shuffle(state.customQuestions).slice(0, 10).map(q => ({
+    question: q.question + (q.material ? '\n材料：' + q.material : ''),
+    options: q.options.map((v, i) => ({ label: ['A','B','C','D'][i], value: v, correct: i === q.answer })),
+    correct: q.options[q.answer],
+    explanation: q.explanation
+  }));
+  calcSession = {
+    typeIdx: -2, difficulty: 0,
+    questions, currentQ: 0,
+    answers: [], startTime: Date.now(),
+    questionStart: Date.now(), finished: false,
+    isCustom: true
+  };
+  renderCalcQuestion();
+}
+
+function deleteQuestion(idx) {
+  state.customQuestions.splice(idx, 1);
+  saveState();
+  renderBank();
+}
+
+function clearAllQuestions() {
+  if (confirm('确定清空所有导入的题目？')) {
+    state.customQuestions = [];
+    saveState();
+    renderBank();
+  }
+}
+
+function exportQuestions() {
+  const data = JSON.stringify(state.customQuestions, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'gongkao_questions.json'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('题目已导出为JSON文件');
+}
+
+function generateShareCode() {
+  if (state.customQuestions.length === 0) { showToast('题库为空'); return; }
+  const code = btoa(unescape(encodeURIComponent(JSON.stringify(state.customQuestions))));
+  showModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">分享码</h3>
+      <p class="text-sm text-gray-500 mb-3">复制分享码发送给好友，好友粘贴即可导入题目</p>
+      <textarea id="share-code-output" rows="4" class="w-full border rounded-lg p-2 text-sm font-mono break-all" readonly>${code}</textarea>
+      <div class="flex gap-3 mt-4">
+        <button onclick="copyShareCode()" class="btn-press flex-1 bg-[#1e3a5f] text-white rounded-xl py-2.5 font-medium">复制分享码</button>
+        <button onclick="closeModal()" class="btn-press flex-1 bg-gray-100 rounded-xl py-2.5">关闭</button>
+      </div>
+    </div>
+  `);
+}
+
+function copyShareCode() {
+  const el = document.getElementById('share-code-output');
+  if (el) {
+    navigator.clipboard.writeText(el.value).then(() => showToast('已复制到剪贴板'));
+  }
+}
+
+function showImportShareCodeModal() {
+  showModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">导入分享码</h3>
+      <textarea id="share-code-input" rows="4" class="w-full border rounded-lg p-2 text-sm font-mono" placeholder="粘贴分享码..."></textarea>
+      <div class="flex gap-3 mt-4">
+        <button onclick="importShareCode()" class="btn-press flex-1 bg-[#1e3a5f] text-white rounded-xl py-2.5 font-medium">导入</button>
+        <button onclick="closeModal()" class="btn-press flex-1 bg-gray-100 rounded-xl py-2.5">取消</button>
+      </div>
+    </div>
+  `);
+}
+
+function importShareCode() {
+  const code = document.getElementById('share-code-input').value.trim();
+  if (!code) { showToast('请粘贴分享码', '#ef4444'); return; }
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(code))));
+    if (!Array.isArray(data)) throw new Error('数据格式错误');
+    let count = 0;
+    data.forEach(item => {
+      if (item.question && Array.isArray(item.options)) {
+        state.customQuestions.push({
+          material: item.material || '',
+          question: item.question,
+          options: item.options,
+          answer: item.answer ?? 0,
+          explanation: item.explanation || '无解析'
+        });
+        count++;
+      }
+    });
+    saveState();
+    closeModal();
+    showToast(`成功导入 ${count} 道题目！`);
+    renderBank();
+  } catch(e) {
+    showToast('分享码无效：' + e.message, '#ef4444');
+  }
+}
+
+// ==================== SHARE MODULE ====================
+function showShareModal() {
+  const score = getOverallScore();
+  const level = getLevel(score);
+  const todayS = state.dailyStats[todayKey()] || { count: 0, correct: 0, total: 0 };
+  const pct = todayS.total > 0 ? Math.round(todayS.correct / todayS.total * 100) : 0;
+
+  const textSummary = `【公考资料分析速算训练】\n等级：${level.icon}${level.name}\n今日练习：${todayS.count}组\n今日正确率：${pct}%\n综合正确率：${score}%\n快来一起训练吧！`;
+
+  showModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">分享我的成绩</h3>
+      <div class="bg-gray-50 rounded-xl p-4 mb-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="level-badge" style="color:${level.color}; background:${level.color}15">${level.icon} ${level.name}</span>
+          <span class="text-sm text-gray-500">综合正确率 ${score}%</span>
+        </div>
+        <div class="text-sm text-gray-600">
+          <p>今日练习：${todayS.count}组</p>
+          <p>今日正确率：${pct}%</p>
+          <p>累计练习：${state.calcHistory.length}组</p>
+        </div>
+      </div>
+      <div class="space-y-3">
+        <button onclick="generatePoster()" class="btn-press w-full bg-gradient-to-r from-[#1e3a5f] to-[#2d5a8e] text-white rounded-xl py-3 font-medium">生成分享海报</button>
+        <button onclick="navigator.clipboard.writeText(\`${textSummary}\`).then(()=>showToast('已复制成绩摘要'))" class="btn-press w-full bg-white border border-gray-200 rounded-xl py-3 font-medium text-sm">复制成绩文本</button>
+      </div>
+      <button onclick="closeModal()" class="btn-press w-full mt-3 text-gray-400 text-sm">关闭</button>
+    </div>
+  `);
+}
+
+async function generatePoster() {
+  closeModal();
+  showToast('正在生成海报...');
+
+  const score = getOverallScore();
+  const level = getLevel(score);
+  const todayS = state.dailyStats[todayKey()] || { count: 0, correct: 0, total: 0 };
+  const pct = todayS.total > 0 ? Math.round(todayS.correct / todayS.total * 100) : 0;
+
+  const posterBody = document.getElementById('poster-body');
+  posterBody.innerHTML = `
+    <div class="flex items-center gap-3 mb-4">
+      <span class="level-badge" style="background:${level.color};color:white">${level.icon} ${level.name}</span>
+      <span class="text-white text-lg font-bold">${score}%</span>
+    </div>
+    <div class="grid grid-cols-3 gap-3 text-center text-white mb-3">
+      <div><div class="text-2xl font-bold">${todayS.count}</div><div class="text-xs text-gray-300">今日练习</div></div>
+      <div><div class="text-2xl font-bold">${pct}%</div><div class="text-xs text-gray-300">今日正确率</div></div>
+      <div><div class="text-2xl font-bold">${state.calcHistory.length}</div><div class="text-xs text-gray-300">累计组数</div></div>
+    </div>
+    <div class="text-center text-sm text-gray-300">${new Date().toLocaleDateString('zh-CN')}</div>
+  `;
+
+  const poster = document.getElementById('share-poster');
+  poster.style.left = '-9999px';
+  poster.style.display = 'block';
+
+  try {
+    const canvas = await html2canvas(poster, {
+      backgroundColor: '#1e3a5f',
+      scale: 2,
+      width: 360,
+      height: poster.offsetHeight
+    });
+    const link = document.createElement('a');
+    link.download = 'gongkao_speed_calc_poster.png';
+    link.href = canvas.toDataURL();
+    link.click();
+    showToast('海报已生成并下载！');
+  } catch(e) {
+    showToast('海报生成失败，请重试', '#ef4444');
+  }
+  poster.style.display = 'none';
+}
+
+// ==================== MODAL ====================
+function showModal(content) {
+  const overlay = document.getElementById('modal-overlay');
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = content;
+  overlay.classList.remove('hidden');
+  overlay.classList.add('flex');
+  overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+}
+
+function closeModal() {
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.add('hidden');
+  overlay.classList.remove('flex');
+}
+
+// ==================== INIT ====================
+function init() {
+  // Set tab button styles
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.add(btn.classList.contains('active') ? 'text-[#1e3a5f]' : 'text-gray-400');
+  });
+  renderDashboard();
+}
+
+init();
+</script>
+</body>
+</html>
