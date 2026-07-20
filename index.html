@@ -1030,7 +1030,7 @@ function renderCalcQuestion() {
         <span class="font-mono text-sm text-[#f59e0b]" id="question-timer">${formatTime(qElapsed)}</span>
       </div>
       <p class="text-[#1e3a5f] font-semibold text-lg mb-4 whitespace-pre-line">${q.question}</p>
-      <div class="bg-blue-50 text-blue-700 text-xs rounded-lg p-2 mb-4">💡 ${q.hint}</div>
+      <div class="bg-blue-50 text-blue-700 text-xs rounded-lg p-2 mb-4">💡 ${q.hint || '仔细审题，选择最接近的答案'}</div>
       <div class="space-y-3">
         ${q.options.map((opt, i) => `
           <button onclick="answerCalcQuestion(${i})" class="option-btn btn-press w-full border-2 border-gray-200 rounded-xl p-3 text-left flex items-center gap-3">
@@ -1082,7 +1082,7 @@ function answerCalcQuestion(idx) {
         optionLabels: q.options.map(o => o.label),
         correctIdx: q.options.findIndex(o => o.correct),
         correct: q.correct, userAnswer: q.options[idx].value,
-        explanation: q.explanation, date: todayKey()
+        explanation: q.explanation, hint: q.hint, date: todayKey()
       });
       saveState();
     }
@@ -1208,7 +1208,8 @@ function startWrongReview() {
           value: v, correct: i === correctIdx
         })),
         correct: wq.correct,
-        explanation: wq.explanation
+        explanation: wq.explanation,
+        hint: wq.hint
       };
     }),
     wrongIndices, // 记录每道题在 state.wrongQuestions 中的原始索引
