@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -814,18 +815,27 @@ function generateCalcQuestions(typeIdx, difficulty) {
 }
 
 function makeOptions(correct, range, decimals = 0) {
-  const opts = new Set([correct]);
-  const step = Math.pow(10, -decimals) || 1;
+  const precision = Math.pow(10, decimals);
+  const correctRounded = Math.round(correct * precision) / precision;
+  const optsSet = new Set([correctRounded]);
   let attempts = 0;
-  while (opts.size < 4 && attempts < 100) {
-    const offset = (Math.random() < 0.5 ? -1 : 1) * (randInt(1, range) * step);
-    const val = Math.round((correct + offset) * Math.pow(10, decimals)) / Math.pow(10, decimals);
-    if (val > 0) opts.add(val);
+  while (optsSet.size < 4 && attempts < 500) {
+    const offset = (Math.random() < 0.5 ? -1 : 1) * (randInt(1, Math.max(range, 5)) / precision);
+    const val = Math.round((correctRounded + offset) * precision) / precision;
+    if (val !== correctRounded) optsSet.add(val);
     attempts++;
   }
+  // Fallback: if still not enough unique options, force generate
+  if (optsSet.size < 4) {
+    for (let i = 1; optsSet.size < 4; i++) {
+      optsSet.add(Math.round((correctRounded + i * 1.1) * precision) / precision);
+      optsSet.add(Math.round((correctRounded - i * 1.1) * precision) / precision);
+    }
+  }
   const labels = ['A', 'B', 'C', 'D'];
-  const arr = Array.from(opts).slice(0, 4);
-  const correctIdx = arr.indexOf(correct);
+  let arr = Array.from(optsSet).slice(0, 4);
+  arr = shuffle(arr);
+  const correctIdx = arr.indexOf(correctRounded);
   return arr.map((v, i) => ({ label: labels[i], value: v, correct: i === correctIdx }));
 }
 
@@ -839,7 +849,7 @@ function genTruncateQ(difficulty) {
   const den = randInt(divRange[0], divRange[1]);
   const num = randInt(Math.round(den * 1.5), den * digits);
   const exact = num / den;
-  const truncNum = parseInt(String(num).padEnd(digits, '0').substring(0, digits));
+  const truncNum = parseInt(String(num).substring(0, digits));
   const truncDen = parseInt(String(den).substring(0, Math.min(2, String(den).length)));
   const truncResult = truncNum / truncDen;
   const correct = Math.round(truncResult * 10) / 10;
@@ -868,24 +878,39 @@ function genFeatureQ(difficulty) {
   };
 }
 
-// Q3: Base period
+// Q3: Base period (按真题规律：60%整数、30%一位小数、10%两位小数)
 function genBaseQ(difficulty) {
   const current = difficulty === 0 ? randInt(200, 999) : difficulty === 1 ? randInt(2000, 9999) : randInt(10000, 99999);
   const rate = randChoice([3.2, 5.1, 7.3, 8.5, 9.8, 11.1, 12.5, 14.3, 16.7, 20, 25, 33.3]);
   const exact = current / (1 + rate / 100);
-  const correct = Math.round(exact);
-  const opts = makeOptions(correct, difficulty === 0 ? 20 : difficulty === 1 ? 100 : 500);
+  // 按真题规律：60%整数 30%一位小数 10%两位小数
+  const r = Math.random();
+  let correct, decimals, range;
+  if (r < 0.6) {
+    correct = Math.round(exact);
+    decimals = 0;
+    range = difficulty === 0 ? 15 : difficulty === 1 ? 80 : 300;
+  } else if (r < 0.9) {
+    correct = Math.round(exact * 10) / 10;
+    decimals = 1;
+    range = difficulty === 0 ? 8 : difficulty === 1 ? 30 : 100;
+  } else {
+    correct = Math.round(exact * 100) / 100;
+    decimals = 2;
+    range = difficulty === 0 ? 3 : difficulty === 1 ? 15 : 50;
+  }
+  const opts = makeOptions(correct, range, decimals);
   const rateFrac = FRACTION_DB.find(f => f.pct === rate);
   return {
     question: `现期量 ${formatNum(current)}，增长率 ${rate}%\n基期量约为？`,
     hint: `基期 = 现期 ÷ (1+r%)${rateFrac ? `，${rate}% ≈ 1/${rateFrac.den}` : ''}`,
     options: opts,
     correct,
-    explanation: `基期 = ${formatNum(current)} ÷ (1+${rate}%) ≈ ${formatNum(current)} ÷ ${(1 + rate/100).toFixed(3)} ≈ ${formatNum(correct)}`
+    explanation: `基期 = ${formatNum(current)} ÷ (1+${rate}%) ≈ ${formatNum(current)} ÷ ${(1 + rate/100).toFixed(3)} ≈ ${decimals === 0 ? formatNum(correct) : correct.toFixed(decimals)}`
   };
 }
 
-// Q4: Growth amount
+// Q4: Growth amount (按真题规律：答案绝大多数为整数)
 function genGrowthQ(difficulty) {
   const current = difficulty === 0 ? randInt(200, 999) : difficulty === 1 ? randInt(2000, 9999) : randInt(10000, 99999);
   const rate = randChoice([3.2, 5.1, 7.3, 8.5, 9.8, 11.1, 12.5, 14.3, 16.7, 20]);
@@ -894,7 +919,7 @@ function genGrowthQ(difficulty) {
   const opts = makeOptions(correct, difficulty === 0 ? 10 : difficulty === 1 ? 50 : 200);
   return {
     question: `现期量 ${formatNum(current)}，增长率 ${rate}%\n增长量约为？`,
-    hint: `增长量 = 现期 × r% ÷ (1+r%)`,
+    hint: `增长量 = 现期 × r% ÷ (1+r%)${rate <= 20 ? `，n/(1+n%) 是特征数字法` : ''}`,
     options: opts,
     correct,
     explanation: `增长量 = ${formatNum(current)} × ${rate}% ÷ (1+${rate}%) = ${exact.toFixed(1)} ≈ ${formatNum(correct)}`
@@ -903,21 +928,29 @@ function genGrowthQ(difficulty) {
 
 // Q5: Weight difference
 function genWeightQ(difficulty) {
-  const d = difficulty === 0 ? 1 : difficulty === 1 ? 10 : 100;
-  const a = randInt(3, 9) * d * 100 + randInt(0, 99) * d;
-  const b = randInt(3, 9) * d * 100 + randInt(0, 99) * d;
-  const c = randInt(3, 9) * d * 100 + randInt(0, 99) * d;
-  const dd = randInt(3, 9) * d * 100 + randInt(0, 99) * d;
+  // 生成两个比重，差值在合理范围内（初级3-15个百分点，中级5-25，高级10-40）
+  const diffRange = difficulty === 0 ? [3, 15] : difficulty === 1 ? [5, 25] : [10, 40];
+  const targetDiff = randInt(diffRange[0], diffRange[1]);
+  // A/B 的值在 20%~90% 之间
+  const r1Pct = randInt(20, 85);
+  const r2Pct = r1Pct + (Math.random() < 0.5 ? targetDiff : -targetDiff);
+  // 生成对应数值
+  const d = difficulty === 0 ? 10 : difficulty === 1 ? 100 : 1000;
+  const b = randInt(5, 20) * d + randInt(0, d - 1);
+  const a = Math.round(b * r1Pct / 100);
+  const dd = randInt(5, 20) * d + randInt(0, d - 1);
+  const c = Math.round(dd * r2Pct / 100);
+  if (a <= 0 || c <= 0) return genWeightQ(difficulty); // 确保数值为正
   const r1 = a / b, r2 = c / dd;
   const diff = r1 - r2;
   const correct = Math.round(diff * 1000) / 10;
-  const opts = makeOptions(correct, difficulty === 0 ? 3 : difficulty === 1 ? 5 : 10, 1);
+  const opts = makeOptions(correct, Math.max(5, Math.abs(Math.round(targetDiff / 2))), 1);
   return {
-    question: `求比重差：${formatNum(a)}/${formatNum(b)} - ${formatNum(c)}/${formatNum(dd)} ≈ ？`,
-    hint: `化为相同分母或估算各自商值后相减`,
+    question: `求比重差：${formatNum(a)}/${formatNum(b)} - ${formatNum(c)}/${formatNum(dd)} ≈ ？（百分点）`,
+    hint: `分别估算两个比重值，再相减`,
     options: opts,
     correct,
-    explanation: `${formatNum(a)}/${formatNum(b)} ≈ ${r1.toFixed(3)}，${formatNum(c)}/${formatNum(dd)} ≈ ${r2.toFixed(3)}，差 ≈ ${correct}%`
+    explanation: `${formatNum(a)}/${formatNum(b)} ≈ ${(r1*100).toFixed(1)}%，${formatNum(c)}/${formatNum(dd)} ≈ ${(r2*100).toFixed(1)}%，差 ≈ ${correct}个百分点`
   };
 }
 
@@ -986,7 +1019,7 @@ function renderCalcQuestion() {
   el.innerHTML = `
     <div class="flex items-center justify-between mb-3">
       <button onclick="endCalcSessionEarly()" class="btn-press text-gray-400 text-sm">✕ 退出</button>
-      <span class="text-sm text-gray-500">${CALC_TYPES[s.typeIdx].icon} ${CALC_TYPES[s.typeIdx].name} · ${diffNames[s.difficulty]}</span>
+      <span class="text-sm text-gray-500">${s.typeIdx >= 0 ? CALC_TYPES[s.typeIdx].icon + ' ' + CALC_TYPES[s.typeIdx].name : '📋 错题复习'} · ${s.isReview ? '复习模式' : diffNames[s.difficulty]}</span>
       <span class="font-mono text-sm text-gray-500" id="total-timer">${formatTime(elapsed)}</span>
     </div>
     <div class="flex items-center gap-1 mb-4">
@@ -994,7 +1027,7 @@ function renderCalcQuestion() {
     </div>
     <div class="bg-white rounded-xl card-shadow-lg p-5 mb-4">
       <div class="flex items-center justify-between mb-2">
-        <span class="text-sm text-gray-500">第 ${s.currentQ + 1}/10 题</span>
+        <span class="text-sm text-gray-500">第 ${s.currentQ + 1}/${s.questions.length} 题</span>
         <span class="font-mono text-sm text-[#f59e0b]" id="question-timer">${formatTime(qElapsed)}</span>
       </div>
       <p class="text-[#1e3a5f] font-semibold text-lg mb-4 whitespace-pre-line">${q.question}</p>
@@ -1029,21 +1062,38 @@ function answerCalcQuestion(idx) {
     btn.onclick = null;
   });
 
-  // Record wrong question
-  if (!isCorrect) {
-    state.wrongQuestions.push({
-      type: 'calc', typeIdx: s.typeIdx,
-      question: q.question, options: q.options.map(o => o.value),
-      correct: q.correct, userAnswer: q.options[idx].value,
-      explanation: q.explanation, date: todayKey()
-    });
-    saveState();
+  // 错题复习模式：答对移除错题，答错保留（不重复添加）
+  if (s.isReview) {
+    if (isCorrect && s.wrongIndices && s.wrongIndices[s.currentQ] !== undefined) {
+      // 按原始错题本索引移除已答对的题
+      state.wrongQuestions.splice(s.wrongIndices[s.currentQ], 1);
+      // 移除后，后续索引全部减1
+      for (let k = s.currentQ + 1; k < s.wrongIndices.length; k++) {
+        if (s.wrongIndices[k] !== undefined) s.wrongIndices[k]--;
+      }
+      saveState();
+    }
+    // 答错的不做任何操作（保留在错题本，不重复添加）
+  } else {
+    // 普通练习模式：记录错题（保存完整选项含label和correct标记）
+    if (!isCorrect) {
+      state.wrongQuestions.push({
+        type: 'calc', typeIdx: s.typeIdx,
+        question: q.question, options: q.options.map(o => o.value),
+        optionLabels: q.options.map(o => o.label),
+        correctIdx: q.options.findIndex(o => o.correct),
+        correct: q.correct, userAnswer: q.options[idx].value,
+        explanation: q.explanation, date: todayKey()
+      });
+      saveState();
+    }
   }
 
   setTimeout(() => {
     s.currentQ++;
     s.questionStart = Date.now();
-    if (s.currentQ >= 10) {
+    const totalQ = s.isReview ? s.questions.length : 10;
+    if (s.currentQ >= totalQ) {
       finishCalcSession();
     } else {
       renderCalcQuestion();
@@ -1057,25 +1107,26 @@ function finishCalcSession() {
   s.finished = true;
 
   const score = s.answers.filter(a => a.correct).length;
+  const totalQ = s.isReview ? s.questions.length : 10;
   const totalTime = Math.floor((Date.now() - s.startTime) / 1000);
-  const avgTime = Math.round(s.answers.reduce((a, b) => a + b.time, 0) / 10);
+  const avgTime = s.answers.length > 0 ? Math.round(s.answers.reduce((a, b) => a + b.time, 0) / s.answers.length) : 0;
 
   // Save history
   state.calcHistory.push({
     typeIdx: s.typeIdx, difficulty: s.difficulty,
-    score, total: 10, avgTime,
-    date: todayKey(), details: s.answers
+    score, total: totalQ, avgTime,
+    date: todayKey(), details: s.answers, isReview: s.isReview
   });
 
   // Save daily stats
   ensureTodayStats();
   state.dailyStats[todayKey()].count++;
   state.dailyStats[todayKey()].correct += score;
-  state.dailyStats[todayKey()].total += 10;
+  state.dailyStats[todayKey()].total += totalQ;
   state.dailyStats[todayKey()].totalTime += totalTime;
   saveState();
 
-  renderCalcResult(s, score, totalTime, avgTime);
+  renderCalcResult(s, score, totalQ, avgTime, totalQ);
 }
 
 function endCalcSessionEarly() {
@@ -1090,16 +1141,16 @@ function endCalcSessionEarly() {
   }
 }
 
-function renderCalcResult(s, score, totalTime, avgTime) {
+function renderCalcResult(s, score, totalTime, avgTime, totalQ) {
   const el = document.getElementById('calc-content');
-  const pct = Math.round(score / 10 * 100);
+  const pct = totalQ > 0 ? Math.round(score / totalQ * 100) : 0;
   const level = getLevel(pct);
   const diffNames = ['初级', '中级', '高级'];
 
   el.innerHTML = `
     <div class="text-center animate-slideUp">
       <div class="text-6xl mb-3">${pct >= 80 ? '🎉' : pct >= 60 ? '👍' : '💪'}</div>
-      <h3 class="text-xl font-bold text-[#1e3a5f] mb-1">${CALC_TYPES[s.typeIdx].name} · ${diffNames[s.difficulty]}</h3>
+      <h3 class="text-xl font-bold text-[#1e3a5f] mb-1">${s.typeIdx >= 0 ? CALC_TYPES[s.typeIdx].name + ' · ' + diffNames[s.difficulty] : '错题复习'}</h3>
       <div class="level-badge bg-white card-shadow mt-2 mb-4" style="color:${level.color}">${level.icon} ${level.name}</div>
       <div class="grid grid-cols-3 gap-3 mb-6">
         <div class="bg-white rounded-xl p-3 card-shadow"><div class="text-2xl font-bold ${pct >= 60 ? 'text-green-500' : 'text-red-500'}">${pct}%</div><div class="text-xs text-gray-400">正确率</div></div>
@@ -1125,8 +1176,12 @@ function renderCalcResult(s, score, totalTime, avgTime) {
         </div>
       </div>
       <div class="flex gap-3">
-        <button onclick="beginCalcSession(${s.typeIdx},${s.difficulty})" class="btn-press flex-1 bg-[#1e3a5f] text-white rounded-xl py-3 font-medium">再来一组</button>
-        <button onclick="calcSession=null;renderCalcMenu()" class="btn-press flex-1 bg-gray-100 rounded-xl py-3 font-medium">返回菜单</button>
+        ${s.isReview ? `
+          <button onclick="calcSession=null;renderCalcMenu()" class="btn-press flex-1 bg-[#1e3a5f] text-white rounded-xl py-3 font-medium">返回菜单</button>
+        ` : `
+          <button onclick="beginCalcSession(${s.typeIdx},${s.difficulty})" class="btn-press flex-1 bg-[#1e3a5f] text-white rounded-xl py-3 font-medium">再来一组</button>
+          <button onclick="calcSession=null;renderCalcMenu()" class="btn-press flex-1 bg-gray-100 rounded-xl py-3 font-medium">返回菜单</button>
+        `}
       </div>
     </div>
   `;
@@ -1134,14 +1189,30 @@ function renderCalcResult(s, score, totalTime, avgTime) {
 
 function startWrongReview() {
   if (state.wrongQuestions.length === 0) { showToast('没有错题！'); return; }
+  const wrongList = state.wrongQuestions.slice(); // 复制当前所有错题
+  const wrongIndices = wrongList.map((_, i) => i); // 记录在原数组中的索引
   calcSession = {
     typeIdx: -1, difficulty: 0,
-    questions: state.wrongQuestions.slice(0, 10).map(wq => ({
-      question: wq.question,
-      options: wq.options.map((v, i) => ({ label: ['A','B','C','D'][i], value: v, correct: v === wq.correct })),
-      correct: wq.correct,
-      explanation: wq.explanation
-    })),
+    questions: wrongList.map(wq => {
+      // 优先用正确答案索引（新记录），回退用值匹配（旧记录兼容）
+      let correctIdx = wq.correctIdx;
+      if (correctIdx === undefined) {
+        correctIdx = wq.options.findIndex(v =>
+          typeof v === 'number' ? Math.abs(v - wq.correct) < 0.001 : v === wq.correct
+        );
+      }
+      if (correctIdx < 0) correctIdx = 0;
+      return {
+        question: wq.question,
+        options: wq.options.map((v, i) => ({
+          label: wq.optionLabels ? wq.optionLabels[i] : ['A','B','C','D'][i],
+          value: v, correct: i === correctIdx
+        })),
+        correct: wq.correct,
+        explanation: wq.explanation
+      };
+    }),
+    wrongIndices, // 记录每道题在 state.wrongQuestions 中的原始索引
     currentQ: 0,
     answers: [],
     startTime: Date.now(),
