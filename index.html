@@ -51,15 +51,47 @@ tr:nth-child(even) { background: #f8fafc; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen pb-20">
+<!-- 登录拦截覆盖层 -->
+<div id="login-overlay" class="fixed inset-0 z-[100] bg-gradient-to-br from-[#1e3a5f] to-[#0f2440] flex items-center justify-center px-4" style="display:none;">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="text-5xl mb-3">📐</div>
+      <h1 class="text-2xl font-bold text-white mb-2">公考资料分析速算训练</h1>
+      <p class="text-gray-300 text-sm">敏感数积累 · 估算练习 · 题库共享</p>
+    </div>
+    <div class="bg-white rounded-2xl p-6 card-shadow-lg">
+      <div class="flex gap-2 mb-4">
+        <div id="overlay-tab-login" class="flex-1 text-center py-2 rounded-lg text-sm font-medium cursor-pointer bg-[#1e3a5f] text-white" onclick="overlaySwitchTab('login')">登录</div>
+        <div id="overlay-tab-register" class="flex-1 text-center py-2 rounded-lg text-sm font-medium cursor-pointer bg-gray-100 text-gray-500" onclick="overlaySwitchTab('register')">注册</div>
+      </div>
+      <div id="overlay-login-form" class="space-y-3">
+        <input id="overlay-login-user" type="text" placeholder="用户名" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm" onkeydown="if(event.key==='Enter')overlayLogin()">
+        <input id="overlay-login-pass" type="password" placeholder="密码" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm" onkeydown="if(event.key==='Enter')overlayLogin()">
+        <button onclick="overlayLogin()" class="btn-press w-full bg-[#1e3a5f] text-white rounded-xl py-2.5 font-medium text-sm">登录</button>
+      </div>
+      <div id="overlay-register-form" class="space-y-3" style="display:none;">
+        <input id="overlay-reg-user" type="text" placeholder="用户名（3-20字符）" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm" onkeydown="if(event.key==='Enter')overlayRegister()">
+        <input id="overlay-reg-pass" type="password" placeholder="密码（6-20字符）" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm" onkeydown="if(event.key==='Enter')overlayRegister()">
+        <input id="overlay-reg-pass2" type="password" placeholder="确认密码" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm" onkeydown="if(event.key==='Enter')overlayRegister()">
+        <button onclick="overlayRegister()" class="btn-press w-full bg-[#1e3a5f] text-white rounded-xl py-2.5 font-medium text-sm">注册</button>
+      </div>
+      <p id="overlay-error" class="text-red-500 text-xs text-center mt-3" style="display:none;"></p>
+    </div>
+    <p class="text-gray-400 text-xs text-center mt-4">登录后即可使用全部功能</p>
+  </div>
+</div>
 <div id="app" class="max-w-lg mx-auto">
 <!-- Header -->
 <header class="bg-gradient-to-r from-[#1e3a5f] to-[#2d5a8e] text-white px-4 py-3 flex items-center justify-between sticky top-0 z-40">
 <div class="flex items-center gap-2">
 <span class="text-lg font-bold">公考速算训练</span>
 </div>
+<div class="flex items-center gap-2">
+<span id="user-status"></span>
 <button onclick="showShareModal()" class="btn-press bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1.5 text-sm flex items-center gap-1">
 <span>分享</span>
 </button>
+</div>
 </header>
 
 <!-- Tab 1: Home/Dashboard -->
@@ -126,6 +158,28 @@ tr:nth-child(even) { background: #f8fafc; }
 </div>
 
 <script>
+// ==================== API CONFIG ====================
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:3000/api'
+  : 'https://gongkao-speed-calc.onrender.com/api';
+let authToken = localStorage.getItem('gk_token') || null;
+let currentUser = JSON.parse(localStorage.getItem('gk_user') || 'null');
+
+async function api(path, options = {}) {
+  const url = API_BASE + path;
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+  try {
+    const res = await fetch(url, { ...options, headers });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '请求失败');
+    return data;
+  } catch(e) {
+    if (e.message === 'Failed to fetch') throw new Error('无法连接服务器');
+    throw e;
+  }
+}
+
 // ==================== DATA STORE ====================
 const STORAGE_KEY = 'gongkao_speed_calc';
 let state = loadState();
@@ -149,8 +203,14 @@ function loadState() {
   return defaultState();
 }
 
+let syncTimer = null;
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+  // 已登录时延迟自动同步
+  if (authToken) {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => syncToCloud(), 3000);
+  }
 }
 
 function todayKey() {
@@ -1251,6 +1311,7 @@ function renderBank() {
         <button onclick="practiceCustomQuestions()" class="btn-press flex-1 bg-green-500 text-white rounded-xl py-3 font-medium text-sm">开始练习</button>
         <button onclick="exportQuestions()" class="btn-press flex-1 bg-blue-500 text-white rounded-xl py-3 font-medium text-sm">导出JSON</button>
         <button onclick="generateShareCode()" class="btn-press flex-1 bg-amber-500 text-white rounded-xl py-3 font-medium text-sm">分享码</button>
+        <button onclick="shareToPublic()" class="btn-press flex-1 bg-purple-500 text-white rounded-xl py-3 font-medium text-sm">分享公共</button>
       </div>
       <div class="bg-white rounded-xl card-shadow overflow-hidden">
         <div class="max-h-[40vh] overflow-y-auto divide-y">
@@ -1279,6 +1340,11 @@ function renderBank() {
         <button onclick="showImportShareCodeModal()" class="btn-press w-full bg-white border border-gray-200 rounded-xl py-2 text-sm text-gray-600">导入分享码</button>
       </div>
     `}
+    <div class="mt-4 bg-white rounded-xl p-4 card-shadow">
+      <h3 class="font-semibold text-[#1e3a5f] text-sm mb-3">公共题库</h3>
+      <p class="text-xs text-gray-400 mb-3">浏览社区分享的题库，一键导入到本地</p>
+      <button onclick="browseSharedBanks()" class="btn-press w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl py-3 font-medium text-sm">浏览公共题库</button>
+    </div>
   `;
 }
 
@@ -1591,13 +1657,328 @@ function closeModal() {
   overlay.classList.remove('flex');
 }
 
-// ==================== INIT ====================
-function init() {
-  // Set tab button styles
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.classList.add(btn.classList.contains('active') ? 'text-[#1e3a5f]' : 'text-gray-400');
+// ==================== AUTH MODULE ====================
+function showAuthModal(mode) {
+  const isLogin = mode === 'login';
+  showModal(`
+    <div class="p-6">
+      <div class="flex gap-2 mb-4">
+        <button id="tab-login" onclick="showAuthModal('login')" class="btn-press flex-1 ${isLogin ? 'bg-[#1e3a5f] text-white' : 'bg-gray-100 text-gray-600'} rounded-xl py-2.5 font-medium text-sm">登录</button>
+        <button id="tab-register" onclick="showAuthModal('register')" class="btn-press flex-1 ${!isLogin ? 'bg-[#1e3a5f] text-white' : 'bg-gray-100 text-gray-600'} rounded-xl py-2.5 font-medium text-sm">注册</button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-sm font-medium text-gray-600">用户名</label>
+          <input id="auth-username" class="w-full border rounded-lg p-2.5 text-sm mt-1" placeholder="请输入用户名" autocomplete="off">
+        </div>
+        <div>
+          <label class="text-sm font-medium text-gray-600">密码</label>
+          <input id="auth-password" type="password" class="w-full border rounded-lg p-2.5 text-sm mt-1" placeholder="请输入密码" autocomplete="off">
+        </div>
+        ${!isLogin ? `
+        <div>
+          <label class="text-sm font-medium text-gray-600">确认密码</label>
+          <input id="auth-password2" type="password" class="w-full border rounded-lg p-2.5 text-sm mt-1" placeholder="请再次输入密码" autocomplete="off">
+        </div>` : ''}
+        <button onclick="${isLogin ? 'submitLogin()' : 'submitRegister()'}" class="btn-press w-full bg-[#1e3a5f] text-white rounded-xl py-3 font-medium">${isLogin ? '登录' : '注册'}</button>
+      </div>
+      <button onclick="closeModal()" class="btn-press w-full mt-3 text-gray-400 text-sm">取消</button>
+    </div>
+  `);
+}
+
+async function submitLogin() {
+  const username = document.getElementById('auth-username').value.trim();
+  const password = document.getElementById('auth-password').value;
+  if (!username || !password) { showToast('请填写用户名和密码', '#ef4444'); return; }
+  try {
+    showToast('登录中...');
+    await handleLogin(username, password);
+  } catch(e) {
+    showToast('登录失败: ' + e.message, '#ef4444');
+  }
+}
+
+async function submitRegister() {
+  const username = document.getElementById('auth-username').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const password2 = document.getElementById('auth-password2').value;
+  if (!username || !password) { showToast('请填写用户名和密码', '#ef4444'); return; }
+  if (password !== password2) { showToast('两次密码不一致', '#ef4444'); return; }
+  try {
+    showToast('注册中...');
+    await handleRegister(username, password);
+  } catch(e) {
+    showToast('注册失败: ' + e.message, '#ef4444');
+  }
+}
+
+async function handleLogin(username, password) {
+  const res = await api('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password })
   });
-  renderDashboard();
+  authToken = res.token;
+  currentUser = res.user;
+  localStorage.setItem('gk_token', authToken);
+  localStorage.setItem('gk_user', JSON.stringify(currentUser));
+  closeModal();
+  updateUserUI();
+  showToast('登录成功！', '#10b981');
+  // 登录后自动从云端加载数据
+  await syncFromCloud();
+}
+
+async function handleRegister(username, password) {
+  const res = await api('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, password })
+  });
+  authToken = res.token;
+  currentUser = res.user;
+  localStorage.setItem('gk_token', authToken);
+  localStorage.setItem('gk_user', JSON.stringify(currentUser));
+  closeModal();
+  updateUserUI();
+  showToast('注册成功！', '#10b981');
+}
+
+function handleLogout() {
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem('gk_token');
+  localStorage.removeItem('gk_user');
+  updateUserUI();
+  showToast('已退出登录');
+  checkLoginGate();
+}
+
+function updateUserUI() {
+  const el = document.getElementById('user-status');
+  if (!el) return;
+  if (authToken && currentUser) {
+    el.innerHTML = `
+      <span class="text-xs text-white/90 mr-1">${currentUser.username}</span>
+      <button onclick="syncToCloud()" class="bg-white/20 hover:bg-white/30 rounded-lg px-2 py-1 text-xs">同步</button>
+      <button onclick="handleLogout()" class="bg-white/20 hover:bg-white/30 rounded-lg px-2 py-1 text-xs ml-1">退出</button>
+    `;
+  } else {
+    el.innerHTML = `<button onclick="showAuthModal('login')" class="bg-white/20 hover:bg-white/30 rounded-lg px-2 py-1 text-xs">登录</button>`;
+  }
+}
+
+// ==================== CLOUD SYNC ====================
+async function syncToCloud() {
+  if (!authToken) { showToast('请先登录'); return; }
+  try {
+    showToast('同步中...');
+    await api('/sync/save', { method: 'POST', body: JSON.stringify({ data: state }) });
+    showToast('同步成功', '#10b981');
+  } catch(e) { showToast('同步失败: ' + e.message, '#ef4444'); }
+}
+
+async function syncFromCloud() {
+  if (!authToken) return;
+  try {
+    const res = await api('/sync/load');
+    if (res.data) {
+      state = { ...defaultState(), ...res.data };
+      saveState();
+      renderDashboard();
+      showToast('云端数据已加载', '#10b981');
+    }
+  } catch(e) { console.error('加载失败', e); }
+}
+
+// ==================== PUBLIC BANK ====================
+async function browseSharedBanks() {
+  try {
+    showToast('加载中...');
+    const res = await api('/bank/list');
+    const banks = res.banks || res.data || [];
+    closeModal();
+    showModal(`
+      <div class="p-6">
+        <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">公共题库</h3>
+        ${banks.length === 0 ? `
+          <div class="text-center py-8 text-gray-400">
+            <p class="text-4xl mb-2">📭</p>
+            <p class="text-sm">暂无公共题库</p>
+          </div>
+        ` : `
+          <div class="space-y-3 max-h-[50vh] overflow-y-auto">
+            ${banks.map(b => `
+              <div class="border rounded-xl p-3 flex items-center justify-between">
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm text-[#1e3a5f] truncate">${b.title}</p>
+                  <div class="flex gap-3 text-xs text-gray-400 mt-1">
+                    <span>作者：${b.author || b.username || '匿名'}</span>
+                    <span>题目：${b.questionCount || b.count || 0}道</span>
+                    <span>下载：${b.downloads || 0}次</span>
+                  </div>
+                </div>
+                <button onclick="importSharedBank('${b.id || b._id}')" class="btn-press bg-[#1e3a5f] text-white text-xs px-3 py-2 rounded-lg ml-2 flex-shrink-0">导入</button>
+              </div>
+            `).join('')}
+          </div>
+        `}
+        <button onclick="closeModal()" class="btn-press w-full mt-4 text-gray-400 text-sm">关闭</button>
+      </div>
+    `);
+  } catch(e) {
+    showToast('加载失败: ' + e.message, '#ef4444');
+  }
+}
+
+async function importSharedBank(id) {
+  try {
+    showToast('导入中...');
+    const res = await api('/bank/' + id);
+    const questions = res.questions || res.data || [];
+    let count = 0;
+    questions.forEach(item => {
+      if (item.question && item.options) {
+        state.customQuestions.push({
+          material: item.material || '',
+          question: item.question,
+          options: item.options,
+          answer: item.answer ?? 0,
+          explanation: item.explanation || '无解析'
+        });
+        count++;
+      }
+    });
+    saveState();
+    closeModal();
+    showToast(`成功导入 ${count} 道题目！`, '#10b981');
+    renderBank();
+  } catch(e) {
+    showToast('导入失败: ' + e.message, '#ef4444');
+  }
+}
+
+async function shareToPublic() {
+  if (state.customQuestions.length === 0) { showToast('题库为空，无法分享', '#ef4444'); return; }
+  if (!authToken) { showToast('请先登录后再分享', '#ef4444'); return; }
+  showModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">分享到公共题库</h3>
+      <div>
+        <label class="text-sm font-medium text-gray-600">题库标题</label>
+        <input id="public-bank-title" class="w-full border rounded-lg p-2.5 text-sm mt-1" placeholder="为你的题库起个标题...">
+      </div>
+      <div class="flex gap-3 mt-4">
+        <button onclick="submitShareToPublic()" class="btn-press flex-1 bg-[#1e3a5f] text-white rounded-xl py-2.5 font-medium">分享</button>
+        <button onclick="closeModal()" class="btn-press flex-1 bg-gray-100 rounded-xl py-2.5">取消</button>
+      </div>
+    </div>
+  `);
+}
+
+async function submitShareToPublic() {
+  const title = document.getElementById('public-bank-title').value.trim();
+  if (!title) { showToast('请输入题库标题', '#ef4444'); return; }
+  try {
+    showToast('上传中...');
+    await api('/bank/upload', {
+      method: 'POST',
+      body: JSON.stringify({ title, questions: state.customQuestions })
+    });
+    closeModal();
+    showToast('题库已分享到公共题库！', '#10b981');
+  } catch(e) {
+    showToast('分享失败: ' + e.message, '#ef4444');
+  }
+}
+
+// ==================== INIT ====================
+// ==================== LOGIN GATE ====================
+function checkLoginGate() {
+  const overlay = document.getElementById('login-overlay');
+  if (!authToken) {
+    overlay.style.display = 'flex';
+    return false;
+  } else {
+    overlay.style.display = 'none';
+    return true;
+  }
+}
+
+function overlaySwitchTab(mode) {
+  const loginTab = document.getElementById('overlay-tab-login');
+  const regTab = document.getElementById('overlay-tab-register');
+  const loginForm = document.getElementById('overlay-login-form');
+  const regForm = document.getElementById('overlay-register-form');
+  if (mode === 'login') {
+    loginTab.className = 'flex-1 text-center py-2 rounded-lg text-sm font-medium cursor-pointer bg-[#1e3a5f] text-white';
+    regTab.className = 'flex-1 text-center py-2 rounded-lg text-sm font-medium cursor-pointer bg-gray-100 text-gray-500';
+    loginForm.style.display = 'block';
+    regForm.style.display = 'none';
+  } else {
+    regTab.className = 'flex-1 text-center py-2 rounded-lg text-sm font-medium cursor-pointer bg-[#1e3a5f] text-white';
+    loginTab.className = 'flex-1 text-center py-2 rounded-lg text-sm font-medium cursor-pointer bg-gray-100 text-gray-500';
+    regForm.style.display = 'block';
+    loginForm.style.display = 'none';
+  }
+  document.getElementById('overlay-error').style.display = 'none';
+}
+
+function showOverlayError(msg) {
+  const el = document.getElementById('overlay-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function overlayLogin() {
+  const username = document.getElementById('overlay-login-user').value.trim();
+  const password = document.getElementById('overlay-login-pass').value;
+  if (!username || !password) { showOverlayError('请输入用户名和密码'); return; }
+  try {
+    const res = await api('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+    authToken = res.token;
+    currentUser = res.user;
+    localStorage.setItem('gk_token', authToken);
+    localStorage.setItem('gk_user', JSON.stringify(currentUser));
+    document.getElementById('login-overlay').style.display = 'none';
+    updateUserUI();
+    await syncFromCloud();
+    renderDashboard();
+    showToast('登录成功', '#10b981');
+  } catch(e) {
+    showOverlayError(e.message);
+  }
+}
+
+async function overlayRegister() {
+  const username = document.getElementById('overlay-reg-user').value.trim();
+  const password = document.getElementById('overlay-reg-pass').value;
+  const password2 = document.getElementById('overlay-reg-pass2').value;
+  if (!username || !password) { showOverlayError('请输入用户名和密码'); return; }
+  if (password !== password2) { showOverlayError('两次密码不一致'); return; }
+  try {
+    const res = await api('/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) });
+    authToken = res.token;
+    currentUser = res.user;
+    localStorage.setItem('gk_token', authToken);
+    localStorage.setItem('gk_user', JSON.stringify(currentUser));
+    document.getElementById('login-overlay').style.display = 'none';
+    updateUserUI();
+    renderDashboard();
+    showToast('注册成功', '#10b981');
+  } catch(e) {
+    showOverlayError(e.message);
+  }
+}
+
+function init() {
+  if (checkLoginGate()) {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.add(btn.classList.contains('active') ? 'text-[#1e3a5f]' : 'text-gray-400');
+    });
+    renderDashboard();
+    updateUserUI();
+    if (authToken) syncFromCloud();
+  }
 }
 
 init();
