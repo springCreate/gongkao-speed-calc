@@ -171,11 +171,15 @@ async function api(path, options = {}) {
   if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
   try {
     const res = await fetch(url, { ...options, headers });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '请求失败');
-    return data;
+    if (!res.ok) {
+      let msg = '请求失败';
+      try { const d = await res.json(); msg = d.error || msg; } catch(e) {}
+      throw new Error(msg);
+    }
+    return await res.json();
   } catch(e) {
-    if (e.message === 'Failed to fetch') throw new Error('无法连接服务器');
+    if (e.message === 'Failed to fetch' || e.name === 'TypeError')
+      throw new Error('无法连接服务器，请检查网络');
     throw e;
   }
 }
@@ -1756,7 +1760,9 @@ function handleLogout() {
 function updateUserUI() {
   const el = document.getElementById('user-status');
   if (!el) return;
-  if (authToken && currentUser) {
+  if (!backendAvailable) {
+    el.innerHTML = `<span class="text-xs text-white/60">本地模式</span>`;
+  } else if (authToken && currentUser) {
     el.innerHTML = `
       <span class="text-xs text-white/90 mr-1">${currentUser.username}</span>
       <button onclick="syncToCloud()" class="bg-white/20 hover:bg-white/30 rounded-lg px-2 py-1 text-xs">同步</button>
@@ -1893,9 +1899,33 @@ async function submitShareToPublic() {
 
 // ==================== INIT ====================
 // ==================== LOGIN GATE ====================
-function checkLoginGate() {
+let backendAvailable = false; // 后端是否可用
+
+async function checkBackend() {
+  try {
+    const res = await fetch(API_BASE.replace('/api', '') + '/api/health', { signal: AbortSignal.timeout(3000) });
+    backendAvailable = res.ok;
+  } catch(e) {
+    backendAvailable = false;
+  }
+  return backendAvailable;
+}
+
+async function checkLoginGate() {
   const overlay = document.getElementById('login-overlay');
-  if (!authToken) {
+  const hasToken = !!authToken;
+
+  // 检测后端是否可用
+  await checkBackend();
+
+  if (!backendAvailable) {
+    // 后端不可用：跳过登录，直接使用本地模式
+    overlay.style.display = 'none';
+    return true;
+  }
+
+  // 后端可用：必须登录
+  if (!hasToken) {
     overlay.style.display = 'flex';
     return false;
   } else {
@@ -1970,14 +2000,15 @@ async function overlayRegister() {
   }
 }
 
-function init() {
-  if (checkLoginGate()) {
+async function init() {
+  const passed = await checkLoginGate();
+  if (passed) {
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.classList.add(btn.classList.contains('active') ? 'text-[#1e3a5f]' : 'text-gray-400');
     });
     renderDashboard();
     updateUserUI();
-    if (authToken) syncFromCloud();
+    if (authToken && backendAvailable) syncFromCloud();
   }
 }
 
